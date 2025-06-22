@@ -139,14 +139,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Angle: 0 radians is to the right. PI (180 deg) is to the left. PI/2 (90 deg) is straight up.
             let angle;
             if (onLeft) {
-                // Left side: Angle between 90 degrees (PI/2) and 180 degrees (PI)
-                // e.g., Math.PI * 0.5 (straight up) to Math.PI (horizontal left)
-                // We want a range like [PI/2, PI], so random value in a range of PI/2, starting from PI/2.
-                angle = Math.PI / 2 + Math.random() * (Math.PI / 2);
+                // Corrected: Left side, visuell oben links [-PI, -PI/2]
+                // -PI (links) bis -PI/2 (oben)
+                angle = -Math.PI / 2 - Math.random() * (Math.PI / 2);
             } else {
-                // Right side: Angle between 0 degrees (horizontal right) and 90 degrees (PI/2)
-                // e.g., 0 (horizontal right) to Math.PI * 0.5 (straight up)
-                angle = Math.random() * (Math.PI / 2);
+                // Corrected: Right side, visuell oben rechts [-PI/2, 0]
+                // -PI/2 (oben) bis 0 (rechts)
+                angle = -Math.random() * (Math.PI / 2);
             }
 
             const length = (this.height / 5) + Math.random() * (this.height / 4); // Branch length relative to tree height
