@@ -53,12 +53,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         addLeaf(size = 10, color = 'green') {
-            if (this.branches.length > 0) {
-                // Add leaf to a random branch
-                const randomBranch = this.branches[Math.floor(Math.random() * this.branches.length)];
+            const allBranches = this.getAllBranches(); // Get all branches, including children
+            if (allBranches.length > 0) {
+                // Add leaf to a random branch from the entire hierarchy
+                const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
                 randomBranch.addLeaf(size, color);
             } else {
-                // Fallback: Add leaf to trunk if no branches exist (or keep for very young trees)
+                // Fallback: Add leaf to trunk if no branches exist
                 // For simplicity, add leaves near the top of the trunk
                 console.log('No branches yet, adding leaf to trunk.');
                 const leafX = this.x + (Math.random() * this.width) - (this.width / 2);
@@ -104,34 +105,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         addBranch() {
-            // Branches can sprout from different heights of the trunk
-            // Ensure tree is tall enough to have a meaningful branch
-            if (this.height < 30) {
-                console.log("Tree is too short to add branches yet.");
+            if (this.height < MIN_TRUNK_HEIGHT_FOR_BRANCHES) {
+                console.log(`Tree is too short for branches. Min height: ${MIN_TRUNK_HEIGHT_FOR_BRANCHES}, current: ${this.height}`);
                 return;
             }
 
-            const branchMinYProportion = 0.2; // Branch can start from 20% of trunk height from top
-            const branchMaxYProportion = 0.8; // Branch can start up to 80% of trunk height from top
-            const randomProportion = branchMinYProportion + Math.random() * (branchMaxYProportion - branchMinYProportion);
+            // Determine the segment of the trunk eligible for branches
+            // It's the part of the trunk above MIN_TRUNK_HEIGHT_FOR_BRANCHES
+            const eligibleTrunkHeight = this.height - MIN_TRUNK_HEIGHT_FOR_BRANCHES;
+            if (eligibleTrunkHeight <= 0) { // Should be caught by the check above, but as a safeguard
+                console.log("Not enough eligible trunk height for branches.");
+                return;
+            }
 
-            // startY is calculated from the top of the tree downwards
-            const branchStartY = (this.y - this.height) + this.height * (1 - randomProportion);
+            // Branches should start on the upper part of this eligible segment.
+            // Let's say, from the very top of the eligible segment down to 80% of its length.
+            // So, randomProportion determines how far down from the top of the *eligible* segment the branch starts.
+            const randomProportionInEligible = Math.random() * 0.8; // Branch starts in the top 80% of the eligible segment
+
+            // branchStartY is calculated from the ground (this.y).
+            // Top of the tree is at this.y - this.height.
+            // Top of the eligible segment is at this.y - this.height.
+            // Bottom of the eligible segment is at this.y - MIN_TRUNK_HEIGHT_FOR_BRANCHES.
+            const branchStartY = (this.y - this.height) + (eligibleTrunkHeight * randomProportionInEligible);
+
 
             const onLeft = Math.random() < 0.5;
             // Start branch from the side of the trunk
             const branchStartX = this.x + (onLeft ? -this.width / 2 : this.width / 2);
 
             // Angle: 0 radians is to the right.
-            // Branches pointing slightly up or down from horizontal.
-            // Left side: between PI - PI/4 and PI + PI/4 (i.e. 135 to 225 degrees)
-            // Right side: between -PI/4 and PI/4 (i.e. -45 to 45 degrees)
-            const angleSpread = Math.PI / 4; // Spread of 45 degrees for branch angle
+            // Branches pointing slightly up or down from horizontal, BUT NOT DOWNWARDS for trunk branches.
+            // Angle: 0 radians is to the right. PI (180 deg) is to the left. PI/2 (90 deg) is straight up.
             let angle;
             if (onLeft) {
-                angle = Math.PI + (Math.random() * angleSpread * 2 - angleSpread); // Centered around PI
+                // Left side: Angle between 90 degrees (PI/2) and 180 degrees (PI)
+                // e.g., Math.PI * 0.5 (straight up) to Math.PI (horizontal left)
+                // We want a range like [PI/2, PI], so random value in a range of PI/2, starting from PI/2.
+                angle = Math.PI / 2 + Math.random() * (Math.PI / 2);
             } else {
-                angle = (Math.random() * angleSpread * 2 - angleSpread); // Centered around 0
+                // Right side: Angle between 0 degrees (horizontal right) and 90 degrees (PI/2)
+                // e.g., 0 (horizontal right) to Math.PI * 0.5 (straight up)
+                angle = Math.random() * (Math.PI / 2);
             }
 
             const length = (this.height / 5) + Math.random() * (this.height / 4); // Branch length relative to tree height
@@ -152,21 +167,47 @@ document.addEventListener('DOMContentLoaded', () => {
             this.thickness = thickness;
             this.color = color; // Inherit color from parent tree or specify
             this.leaves = [];
+            this.childBranches = []; // New: List for child branches
             this.endX = this.startX + Math.cos(this.angle) * this.length;
             this.endY = this.startY + Math.sin(this.angle) * this.length;
         }
 
-        drawBranchItself() { // Renamed and modified
+        drawBranchItself() {
             ctx.beginPath();
             ctx.moveTo(this.startX, this.startY);
             ctx.lineTo(this.endX, this.endY);
             ctx.lineWidth = this.thickness;
-            ctx.strokeStyle = this.color; // Use strokeStyle for lines
+            ctx.strokeStyle = this.color;
             ctx.stroke();
+
+            // Recursively draw child branches
+            this.childBranches.forEach(child => child.drawBranchItself());
         }
 
-        drawBranchLeaves() { // New method
+        drawBranchLeaves() {
             this.leaves.forEach(leaf => leaf.draw());
+            // Recursively draw leaves of child branches
+            this.childBranches.forEach(child => child.drawBranchLeaves());
+        }
+
+        addChildBranch() {
+            if (this.length < 10 || this.childBranches.length > 2) { // Don't branch if too short or too many children
+                console.log("Branch is too short or already has enough child branches.");
+                return;
+            }
+
+            const newLength = this.length * (0.5 + Math.random() * 0.3); // 50-80% of parent length
+            const newThickness = Math.max(1, this.thickness * 0.7); // 70% of parent thickness
+
+            // Angle relative to parent branch, can go downwards
+            // e.g. parentAngle +/- 60 degrees (PI/3)
+            const angleVariation = Math.PI / 3;
+            const newAngle = this.angle + (Math.random() * angleVariation * 2 - angleVariation);
+
+            // New branch starts at the end of the parent branch
+            const newBranch = new Branch(this.parentTree, this.endX, this.endY, newLength, newAngle, newThickness, this.color);
+            this.childBranches.push(newBranch);
+            console.log("Child branch added.");
         }
 
         // Method to add leaves specifically to this branch
@@ -260,6 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Game Setup
     const GROUND_LEVEL_OFFSET = 20; // Pixels from the bottom for the ground
+    const MIN_TRUNK_HEIGHT_FOR_BRANCHES = 40; // Min height of trunk before branches can sprout
 
     function initializeGame() {
         resizeCanvas(); // Call resizeCanvas first to set correct canvas dimensions
@@ -391,11 +433,37 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     addBranchButton.addEventListener('click', () => {
-        if (trees.length > 0) {
-            trees[0].addBranch();
-            // updateScore(); // Branches might contribute to score later
+        if (trees.length === 0) return;
+        const currentTree = trees[0]; // For now, always operate on the first tree
+
+        // Decide whether to add a branch to the trunk or to an existing branch
+        if (currentTree.branches.length === 0 || Math.random() < 0.4 || currentTree.height < MIN_TRUNK_HEIGHT_FOR_BRANCHES + 20) {
+            // Add to trunk if no branches yet, or 40% chance, or if tree is not much taller than min height for branches
+            currentTree.addBranch();
+        } else {
+            // Try to add to an existing branch
+            const allBranches = currentTree.getAllBranches(); // Helper function to get all branches including children
+            if (allBranches.length > 0) {
+                const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
+                randomBranch.addChildBranch();
+            } else {
+                // Fallback if somehow no branches were found (should not happen if currentTree.branches.length > 0)
+                currentTree.addBranch();
+            }
         }
+        // updateScore(); // Branches might contribute to score later
     });
+
+    // Helper function in Tree class to get all branches (main + children)
+    Tree.prototype.getAllBranches = function() {
+        let allBranches = [];
+        function collectBranches(branch) {
+            allBranches.push(branch);
+            branch.childBranches.forEach(collectBranches);
+        }
+        this.branches.forEach(collectBranches);
+        return allBranches;
+    };
 
     // Initialize the game
     initializeGame();
