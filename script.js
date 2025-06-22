@@ -21,9 +21,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         draw() {
-            // Draw trunk
+             // Draw trunk (tapered)
             ctx.fillStyle = this.color;
-            ctx.fillRect(this.x - this.width / 2, this.y - this.height, this.width, this.height); // 1. Stamm
+            ctx.beginPath();
+            ctx.moveTo(this.x - this.width / 2, this.y); // Bottom-left
+            ctx.lineTo(this.x + this.width / 2, this.y); // Bottom-right
+            ctx.lineTo(this.x, this.y - this.height);    // Top-center
+            ctx.closePath();
+            ctx.fill();
 
             // 2. Wurzeln zeichnen
             this.roots.forEach(root => root.draw());
