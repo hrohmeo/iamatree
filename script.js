@@ -23,16 +23,19 @@ document.addEventListener('DOMContentLoaded', () => {
         draw() {
             // Draw trunk
             ctx.fillStyle = this.color;
-            ctx.fillRect(this.x - this.width / 2, this.y - this.height, this.width, this.height);
+            ctx.fillRect(this.x - this.width / 2, this.y - this.height, this.width, this.height); // 1. Stamm
 
-            // Draw branches (which will draw their own leaves)
-            this.branches.forEach(branch => branch.draw());
-
-            // Draw leaves attached directly to trunk (fallback or initial leaves)
-            this.leaves.forEach(leaf => leaf.draw());
-
-            // Draw roots
+            // 2. Wurzeln zeichnen
             this.roots.forEach(root => root.draw());
+
+            // 3. Äste selbst zeichnen
+            this.branches.forEach(branch => branch.drawBranchItself());
+
+            // 4. Blätter der Äste zeichnen
+            this.branches.forEach(branch => branch.drawBranchLeaves());
+
+            // 5. Blätter am Stamm zeichnen (Fallback)
+            this.leaves.forEach(leaf => leaf.draw());
 
             // TODO: Draw fruits
         }
@@ -153,15 +156,16 @@ document.addEventListener('DOMContentLoaded', () => {
             this.endY = this.startY + Math.sin(this.angle) * this.length;
         }
 
-        draw() {
+        drawBranchItself() { // Renamed and modified
             ctx.beginPath();
             ctx.moveTo(this.startX, this.startY);
             ctx.lineTo(this.endX, this.endY);
             ctx.lineWidth = this.thickness;
             ctx.strokeStyle = this.color; // Use strokeStyle for lines
             ctx.stroke();
+        }
 
-            // Draw leaves on this branch
+        drawBranchLeaves() { // New method
             this.leaves.forEach(leaf => leaf.draw());
         }
 
