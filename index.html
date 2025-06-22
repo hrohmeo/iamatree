@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I Am A Tree</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>I Am A Tree</h1>
+    </header>
+
+    <main>
+        <div id="game-container">
+            <canvas id="game-canvas"></canvas>
+        </div>
+
+        <div id="ui-container">
+            <h2>Steuerung</h2>
+            <div id="tree-controls">
+                <button id="grow-height-button">Höher wachsen</button>
+                <button id="grow-roots-button">Wurzeln bilden</button>
+                <button id="grow-leaves-button">Blätter bilden</button>
+                <button id="produce-fruit-button" disabled>Früchte produzieren</button>
+            </div>
+            <div id="plant-tree-controls">
+                <button id="plant-new-tree-button" disabled>Neuen Baum pflanzen</button>
+            </div>
+            <div id="score-display">
+                <p>Punktzahl: <span id="current-score">0</span></p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2023 Dein Name oder Spielstudio</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
