@@ -153,8 +153,50 @@ document.addEventListener('DOMContentLoaded', () => {
                 angle = -Math.random() * (Math.PI / 2);
             }
 
-            const length = (this.height / 5) + Math.random() * (this.height / 4); // Branch length relative to tree height
-            const thickness = Math.max(1, this.width / 4); // Branch thickness relative to trunk width
+            // Calculate scale factor based on vertical position
+            // eligibleTrunkHeight is the segment of the trunk where branches can grow
+            const eligibleTrunkHeightForScaling = this.height - MIN_TRUNK_HEIGHT_FOR_BRANCHES;
+            let scaleFactor = 1.0; // Default scale
+
+            if (eligibleTrunkHeightForScaling > 0) {
+                // heightFromTrunkTop is how far down from the top of the eligible segment the branch is.
+                // branchStartY is measured from canvas origin (top-left).
+                // Top of the tree is this.y - this.height.
+                // Lowest point for branch is this.y - MIN_TRUNK_HEIGHT_FOR_BRANCHES
+                // Highest point for branch is this.y - this.height (top of the trunk)
+                
+                // proportionFromTop: 0 means at the very top of eligible segment, 1 means at the very bottom.
+                // branchStartY is already calculated based on randomProportionInEligible,
+                // where randomProportionInEligible = 0 means top of eligible segment.
+                // So, randomProportionInEligible itself can serve as proportionFromTop.
+                // The existing randomProportionInEligible is Math.random() * 0.8, so it's 0 to 0.8.
+                // Let's use the distance from the actual top of the tree.
+                // Top of tree: this.y - this.height
+                // Bottom of branchable area: this.y - MIN_TRUNK_HEIGHT_FOR_BRANCHES
+                
+                // Distance of branch start from the absolute top of the tree
+                const distanceFromTreeTop = branchStartY - (this.y - this.height);
+                
+                // Normalize this distance over the total branchable height
+                // If eligibleTrunkHeightForScaling is 0, this would be a problem, but we checked.
+                let normalizedPosition = distanceFromTreeTop / eligibleTrunkHeightForScaling; // 0 = top, 1 = bottom
+
+                // We want smaller branches at the top (normalizedPosition close to 0).
+                // So, scaleFactor should be smaller when normalizedPosition is smaller.
+                const minScale = 0.5; // Branches at the top are 50% of standard size
+                const maxScale = 1.0; // Branches at the bottom are 100% of standard size
+                scaleFactor = minScale + (maxScale - minScale) * normalizedPosition;
+                
+                // Clamp scaleFactor to be between minScale and maxScale, just in case.
+                scaleFactor = Math.max(minScale, Math.min(maxScale, scaleFactor));
+            }
+
+
+            const baseLength = (this.height / 5) + Math.random() * (this.height / 4);
+            const baseThickness = Math.max(1, this.width / 4);
+
+            const length = baseLength * scaleFactor;
+            const thickness = Math.max(1, baseThickness * scaleFactor); // Ensure thickness is at least 1
 
             this.branches.push(new Branch(this, branchStartX, branchStartY, length, angle, thickness, this.color));
             console.log('Branch added');
