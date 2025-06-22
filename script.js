@@ -135,11 +135,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const branchStartY = (this.y - this.height) + (eligibleTrunkHeight * randomProportionInEligible);
 
 
-            const onLeft = Math.random() < 0.5;
-            // Start branch from the side of the trunk
-            const branchStartX = this.x + (onLeft ? -this.width / 2 : this.width / 2);
+            // Start branch from the horizontal center of the trunk
+            const branchStartX = this.x;
 
             // Angle: 0 radians is to the right.
+            // Since branches now originate from the center, the angle needs to ensure they point outwards.
+            // The previous angle logic was fine, as it determined direction irrespective of exact start X.
+            const onLeft = Math.random() < 0.5;
             // Branches pointing slightly up or down from horizontal, BUT NOT DOWNWARDS for trunk branches.
             // Angle: 0 radians is to the right. PI (180 deg) is to the left. PI/2 (90 deg) is straight up.
             let angle;
@@ -202,6 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Branch added');
         }
     }
+
 
     class Branch {
         constructor(parentTree, startX, startY, length, angle, thickness, color) {
