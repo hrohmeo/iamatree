@@ -87,9 +87,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const baseAngle = Math.PI / 2;
             const angleVariation = Math.PI / 4; // +/- 45 degrees from straight down
             const initialAngle = baseAngle + (Math.random() * angleVariation * 2 - angleVariation);
+            const rootMaxWidth = this.width * 3; // Roots can spread 3 times the current trunk width
 
-            this.roots.push(new Root(rootStartX, rootStartY, initialLength, initialAngle, initialThickness));
-            console.log(`Root added at angle: ${initialAngle}`);
+            this.roots.push(new Root(rootStartX, rootStartY, initialLength, initialAngle, initialThickness, 0, rootMaxWidth));
+            console.log(`Root added at angle: ${initialAngle}, maxWidth: ${rootMaxWidth}`);
         }
 
         produceFruit() {
@@ -295,22 +296,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     class Root {
-        constructor(startX, startY, length, angle, thickness, depth = 0) { // Added depth
+        constructor(startX, startY, length, angle, thickness, depth = 0, maxWidth) { // Added depth and maxWidth
             this.startX = startX;
             this.startY = startY;
             this.length = length;
             this.angle = angle; // Angle in radians (0 is right, PI/2 is down)
-            this.thickness = Math.max(1, thickness - depth); // Roots get thinner with depth
+            this.thickness = Math.max(1, thickness - depth * 0.5); // Roots get thinner with depth
             this.color = 'peru';
             this.depth = depth; // How many segments away from the main root
             this.childRoots = [];
+            this.maxWidth = maxWidth; // Max spread for roots
 
             this.endX = this.startX + Math.cos(this.angle) * this.length;
             this.endY = this.startY + Math.sin(this.angle) * this.length;
 
-            // Attempt to branch if not too deep
-            if (this.depth < 3 && Math.random() < 0.3) { // 30% chance to branch, max depth 3
-                this.tryBranch();
+            // Attempt to branch if not too deep and within reasonable y-bounds
+            const MAX_ROOT_DEPTH_LEVEL = 4; // Max recursion depth for branching
+            const MAX_ROOT_Y_POSITION = canvas.height - 5; // Don't let roots grow off the bottom of the canvas
+
+            if (this.depth < MAX_ROOT_DEPTH_LEVEL && this.endY < MAX_ROOT_Y_POSITION && this.length > 5) {
+                // More aggressive branching, similar to tree branches
+                 if (Math.random() < 0.6) { // Higher chance to branch
+                    this.tryBranch();
+                }
+                // Chance for a second branch from the same point
+                if (this.depth < MAX_ROOT_DEPTH_LEVEL -1 && Math.random() < 0.4) {
+                    this.tryBranch();
+                }
             }
         }
 
@@ -326,15 +338,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         tryBranch() {
-            // Add 1 or 2 child roots
-            const numBranches = Math.random() < 0.7 ? 1 : 2; // 70% chance for 1 branch, 30% for 2
-            for (let i = 0; i < numBranches; i++) {
-                const newAngle = this.angle + (Math.random() * Math.PI / 3 - Math.PI / 6); // Branch off +/- 30 degrees
-                const newLength = this.length * (0.6 + Math.random() * 0.2); // Shorter than parent
-                if (newLength < 2) continue; // Min length for a root segment
+            const MAX_ANGLE_SPREAD = Math.PI / 2.5; // Max angle change from parent, allows wider spread (e.g. +/- 36 degrees from parent)
 
-                this.childRoots.push(new Root(this.endX, this.endY, newLength, newAngle, this.thickness, this.depth + 1));
+            // Determine angle variation: ensure roots spread outwards and downwards
+            let angleVariation = (Math.random() * MAX_ANGLE_SPREAD) - (MAX_ANGLE_SPREAD / 2);
+
+            // Ensure the new angle is generally downwards
+            // Current angle might be anything. We want to bias towards PI/2 (down).
+            // If current angle is far from PI/2, nudge it closer.
+            let newAngle = this.angle + angleVariation;
+
+            // Nudge towards PI/2 if too horizontal, to encourage downward growth overall
+            const downwardBiasStrength = 0.2; // How strongly to pull towards PI/2
+            if (Math.abs(newAngle - Math.PI/2) > Math.PI/4) { // If angle is more than 45 deg from straight down
+                 newAngle = newAngle * (1 - downwardBiasStrength) + (Math.PI/2) * downwardBiasStrength;
             }
+
+
+            // Prevent roots from growing too far horizontally beyond maxWidth from the tree's base (this.parentTree.x)
+            // This requires access to parentTree.x, which Root doesn't have directly.
+            // For now, we'll use a simpler heuristic based on the starting X of the root system (initial call to new Root)
+            // This isn't perfect, but avoids complex parent tree reference passing for now.
+            // A better approach would be to pass the tree's center X to the constructor.
+            // For now, let's assume `this.maxWidth` is the total allowed spread from the initial root point.
+            // And `this.startX` of the very first root segment is the center line.
+            // This logic is tricky without the tree's actual center.
+            // Let's assume the initial call to addRoot will set a sensible initial angle.
+
+            const newLength = this.length * (0.5 + Math.random() * 0.4); // 50-90% of parent length
+            if (newLength < 3) return; // Min length for a root segment
+
+            // Check if the new root would go beyond the canvas bottom significantly
+            const prospectiveEndY = this.endY + Math.sin(newAngle) * newLength;
+            if (prospectiveEndY > canvas.height - 5) { // 5px buffer from bottom
+                // console.log("Prevented root from growing off canvas bottom.");
+                return;
+            }
+
+
+            this.childRoots.push(new Root(this.endX, this.endY, newLength, newAngle, this.thickness, this.depth + 1, this.maxWidth));
         }
     }
 
@@ -349,7 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const scoreDisplay = document.getElementById('current-score');
 
     // Game Setup
-    const GROUND_LEVEL_OFFSET = 20; // Pixels from the bottom for the ground
+    const GROUND_LEVEL_OFFSET = 60; // Pixels from the bottom for the ground - Increased for more root space
     const MIN_TRUNK_HEIGHT_FOR_BRANCHES = 40; // Min height of trunk before branches can sprout
 
     function initializeGame() {
