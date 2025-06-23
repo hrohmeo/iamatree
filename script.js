@@ -484,9 +484,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Event Listeners for UI
     growHeightButton.addEventListener('click', () => {
         if (trees.length > 0) {
-            const amount = parseInt(growHeightInput.value, 10) || 1;
-            trees[0].growHeight(amount); // Pass the amount
-            trees[0].growWidth(amount * 0.05); // Scale width growth with height growth
+            const inputAmount = parseInt(growHeightInput.value, 10) || 1;
+            const growthAmount = inputAmount * 10; // Scale factor of 10
+            trees[0].growHeight(growthAmount);
+            // Width growth should be relative to the input unit, not the final pixel growth,
+            // to maintain the same proportional feel as before.
+            // E.g., input 1 (grows 10px) should have same width increase as input 1 before this change.
+            trees[0].growWidth(inputAmount * 0.05);
             updateScore();
         }
     });
