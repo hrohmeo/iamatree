@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
         minHeightForBranches: 100,
         minHeightForFruits: 250,
         minLeavesForFruits: 50,
-        // minBranchesForLeaves: 1, // Implied by "must have branches"
+        minBranchesForLeaves: 1, 
     };
 
     // Game variables
