@@ -93,15 +93,23 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(`Root added at angle: ${initialAngle}, maxWidth: ${rootMaxWidth}`);
         }
 
-        produceFruit() {
-            if (this.height >= 50) { // Example condition: Tree must be tall enough
-                this.fruits += 1;
-                console.log(`Fruit produced. Total fruits: ${this.fruits}`);
-                updateScore(); // Score depends on fruits
-                document.getElementById('plant-new-tree-button').disabled = false;
-            } else {
-                console.log('Tree is not tall enough to produce fruit.');
+        produceFruit(count = 1) { // Add count parameter with default value
+            let producedCount = 0;
+            for (let i = 0; i < count; i++) {
+                if (this.height >= 50) { // Example condition: Tree must be tall enough
+                    this.fruits += 1;
+                    producedCount++;
+                } else {
+                    console.log('Tree is not tall enough to produce fruit. Stopped producing.');
+                    break; // Stop if condition not met
+                }
             }
+            if (producedCount > 0) {
+                console.log(`${producedCount} fruit(s) produced. Total fruits: ${this.fruits}`);
+                updateScore(); // Score depends on fruits
+                // Button state update will be handled by updateScore -> updateButtonStates
+            }
+            // No need to directly manipulate plant-new-tree-button here, updateScore will do it.
         }
 
         getScore() {
@@ -385,10 +393,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const growHeightButton = document.getElementById('grow-height-button');
     const growRootsButton = document.getElementById('grow-roots-button');
     const growLeavesButton = document.getElementById('grow-leaves-button');
-    const addBranchButton = document.getElementById('add-branch-button'); // New button
+    const addBranchButton = document.getElementById('add-branch-button');
     const produceFruitButton = document.getElementById('produce-fruit-button');
     const plantNewTreeButton = document.getElementById('plant-new-tree-button');
     const scoreDisplay = document.getElementById('current-score');
+
+    // Input fields
+    const growHeightInput = document.getElementById('grow-height-input');
+    const growRootsInput = document.getElementById('grow-roots-input');
+    const growLeavesInput = document.getElementById('grow-leaves-input');
+    const addBranchInput = document.getElementById('add-branch-input');
+    const produceFruitInput = document.getElementById('produce-fruit-input');
 
     // Game Setup
     const GROUND_LEVEL_OFFSET = 60; // Pixels from the bottom for the ground - Increased for more root space
@@ -469,33 +484,38 @@ document.addEventListener('DOMContentLoaded', () => {
     // Event Listeners for UI
     growHeightButton.addEventListener('click', () => {
         if (trees.length > 0) {
-            // For now, affect the first tree. Later, we'll need a way to select a tree.
-            trees[0].growHeight();
-            trees[0].growWidth(0.5); // Trunk gets slightly wider as it grows taller
+            const amount = parseInt(growHeightInput.value, 10) || 1;
+            trees[0].growHeight(amount); // Pass the amount
+            trees[0].growWidth(amount * 0.05); // Scale width growth with height growth
             updateScore();
         }
     });
 
     growRootsButton.addEventListener('click', () => {
         if (trees.length > 0) {
-            // For now, affect the first tree.
-            trees[0].addRoot(); // New addRoot doesn't need parameters here
-            updateScore(); // Roots might not directly add to score, but are essential
+            const count = parseInt(growRootsInput.value, 10) || 1;
+            for (let i = 0; i < count; i++) {
+                trees[0].addRoot();
+            }
+            updateScore();
         }
     });
 
     growLeavesButton.addEventListener('click', () => {
         if (trees.length > 0) {
-            // For now, affect the first tree.
-            trees[0].addLeaf(10 + Math.random() * 5); // Random leaf size
-            updateScore(); // Leaves might contribute to score or resource generation
+            const count = parseInt(growLeavesInput.value, 10) || 1;
+            for (let i = 0; i < count; i++) {
+                trees[0].addLeaf(10 + Math.random() * 5); // Random leaf size for each
+            }
+            updateScore();
         }
     });
 
     produceFruitButton.addEventListener('click', () => {
         if (trees.length > 0) {
-            // For now, affect the first tree.
-            trees[0].produceFruit();
+            const count = parseInt(produceFruitInput.value, 10) || 1;
+            // The produceFruit method will handle incrementing and conditions
+            trees[0].produceFruit(count);
             updateScore();
         }
     });
@@ -526,23 +546,26 @@ document.addEventListener('DOMContentLoaded', () => {
     addBranchButton.addEventListener('click', () => {
         if (trees.length === 0) return;
         const currentTree = trees[0]; // For now, always operate on the first tree
+        const count = parseInt(addBranchInput.value, 10) || 1;
 
-        // Decide whether to add a branch to the trunk or to an existing branch
-        if (currentTree.branches.length === 0 || Math.random() < 0.4 || currentTree.height < MIN_TRUNK_HEIGHT_FOR_BRANCHES + 20) {
-            // Add to trunk if no branches yet, or 40% chance, or if tree is not much taller than min height for branches
-            currentTree.addBranch();
-        } else {
-            // Try to add to an existing branch
-            const allBranches = currentTree.getAllBranches(); // Helper function to get all branches including children
-            if (allBranches.length > 0) {
-                const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
-                randomBranch.addChildBranch();
-            } else {
-                // Fallback if somehow no branches were found (should not happen if currentTree.branches.length > 0)
+        for (let i = 0; i < count; i++) {
+            // Decide whether to add a branch to the trunk or to an existing branch
+            if (currentTree.branches.length === 0 || Math.random() < 0.4 || currentTree.height < MIN_TRUNK_HEIGHT_FOR_BRANCHES + 20) {
+                // Add to trunk if no branches yet, or 40% chance, or if tree is not much taller than min height for branches
                 currentTree.addBranch();
+            } else {
+                // Try to add to an existing branch
+                const allBranches = currentTree.getAllBranches(); // Helper function to get all branches including children
+                if (allBranches.length > 0) {
+                    const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
+                    randomBranch.addChildBranch();
+                } else {
+                    // Fallback if somehow no branches were found (should not happen if currentTree.branches.length > 0)
+                    currentTree.addBranch();
+                }
             }
         }
-        // updateScore(); // Branches might contribute to score later
+        // updateScore(); // Branches might contribute to score later, if desired
     });
 
     // Helper function in Tree class to get all branches (main + children)

@@ -19,11 +19,31 @@
         <div id="ui-container">
             <h2>Steuerung</h2>
             <div id="tree-controls">
-                <button id="grow-height-button">Höher wachsen</button>
-                <button id="grow-roots-button">Wurzeln bilden</button>
-                <button id="grow-leaves-button">Blätter bilden</button>
-                <button id="add-branch-button">Ast bilden</button>
-                <button id="produce-fruit-button" disabled>Früchte produzieren</button>
+                <div>
+                    <label for="grow-height-input" class="visually-hidden">Anzahl Höhe</label>
+                    <input type="number" id="grow-height-input" value="1" min="1" aria-label="Anzahl für Höhe wachstum">
+                    <button id="grow-height-button">Höher wachsen</button>
+                </div>
+                <div>
+                    <label for="grow-roots-input" class="visually-hidden">Anzahl Wurzeln</label>
+                    <input type="number" id="grow-roots-input" value="1" min="1" aria-label="Anzahl für Wurzeln bilden">
+                    <button id="grow-roots-button">Wurzeln bilden</button>
+                </div>
+                <div>
+                    <label for="grow-leaves-input" class="visually-hidden">Anzahl Blätter</label>
+                    <input type="number" id="grow-leaves-input" value="1" min="1" aria-label="Anzahl für Blätter bilden">
+                    <button id="grow-leaves-button">Blätter bilden</button>
+                </div>
+                <div>
+                    <label for="add-branch-input" class="visually-hidden">Anzahl Äste</label>
+                    <input type="number" id="add-branch-input" value="1" min="1" aria-label="Anzahl für Ast bilden">
+                    <button id="add-branch-button">Ast bilden</button>
+                </div>
+                <div>
+                    <label for="produce-fruit-input" class="visually-hidden">Anzahl Früchte</label>
+                    <input type="number" id="produce-fruit-input" value="1" min="1" aria-label="Anzahl für Früchte produzieren">
+                    <button id="produce-fruit-button" disabled>Früchte produzieren</button>
+                </div>
             </div>
             <div id="plant-tree-controls">
                 <button id="plant-new-tree-button" disabled>Neuen Baum pflanzen</button>
