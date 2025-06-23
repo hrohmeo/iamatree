@@ -2,6 +2,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d');
 
+    // Game Configuration
+    const gameRules = {
+        minHeightForBranches: 100,
+        minHeightForFruits: 250,
+        minLeavesForFruits: 50,
+        // minBranchesForLeaves: 1, // Implied by "must have branches"
+    };
+
     // Game variables
     let score = 0;
     let trees = [];
@@ -64,14 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
                 randomBranch.addLeaf(size, color);
             } else {
-                // Fallback: Add leaf to trunk if no branches exist
-                // For simplicity, add leaves near the top of the trunk
-                console.log('No branches yet, adding leaf to trunk.');
-                const leafX = this.x + (Math.random() * this.width) - (this.width / 2);
-                // Position leaves near the top of the trunk, slightly spread out
-                const leafY = (this.y - this.height) + (Math.random() * this.height * 0.2); // In the top 20% of the trunk
-                this.leaves.push(new Leaf(leafX, leafY, size, color));
-                // console.log('Leaf added to trunk'); // Redundant with Branch.addLeaf logging
+                // Leaves can only be added if branches exist.
+                console.log('Cannot add leaf: Tree has no branches.');
+                // Optionally, provide user feedback here if a UI notification system exists.
             }
         }
 
@@ -95,15 +98,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         produceFruit(count = 1) { // Add count parameter with default value
             let producedCount = 0;
-            for (let i = 0; i < count; i++) {
-                if (this.height >= 50) { // Example condition: Tree must be tall enough
-                    this.fruits += 1;
-                    producedCount++;
-                } else {
-                    console.log('Tree is not tall enough to produce fruit. Stopped producing.');
-                    break; // Stop if condition not met
-                }
+            const totalLeaves = this.getTotalLeaves();
+
+            if (this.height < gameRules.minHeightForFruits) {
+                console.log(`Tree is not tall enough to produce fruit. Min height: ${gameRules.minHeightForFruits}, current: ${this.height}`);
+                return; // Stop if height condition not met
             }
+
+            if (totalLeaves < gameRules.minLeavesForFruits) {
+                console.log(`Tree does not have enough leaves to produce fruit. Min leaves: ${gameRules.minLeavesForFruits}, current: ${totalLeaves}`);
+                return; // Stop if leaf condition not met
+            }
+
+            for (let i = 0; i < count; i++) {
+                // Conditions already checked, so we can produce fruit
+                this.fruits += 1;
+                producedCount++;
+            }
+
             if (producedCount > 0) {
                 console.log(`${producedCount} fruit(s) produced. Total fruits: ${this.fruits}`);
                 updateScore(); // Score depends on fruits
@@ -119,14 +131,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         addBranch() {
-            if (this.height < MIN_TRUNK_HEIGHT_FOR_BRANCHES) {
-                console.log(`Tree is too short for branches. Min height: ${MIN_TRUNK_HEIGHT_FOR_BRANCHES}, current: ${this.height}`);
+            if (this.height < gameRules.minHeightForBranches) {
+                console.log(`Tree is too short for branches. Min height: ${gameRules.minHeightForBranches}, current: ${this.height}`);
                 return;
             }
 
             // Determine the segment of the trunk eligible for branches
-            // It's the part of the trunk above MIN_TRUNK_HEIGHT_FOR_BRANCHES
-            const eligibleTrunkHeight = this.height - MIN_TRUNK_HEIGHT_FOR_BRANCHES;
+            // It's the part of the trunk above gameRules.minHeightForBranches
+            const eligibleTrunkHeight = this.height - gameRules.minHeightForBranches;
             if (eligibleTrunkHeight <= 0) { // Should be caught by the check above, but as a safeguard
                 console.log("Not enough eligible trunk height for branches.");
                 return;
@@ -140,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // branchStartY is calculated from the ground (this.y).
             // Top of the tree is at this.y - this.height.
             // Top of the eligible segment is at this.y - this.height.
-            // Bottom of the eligible segment is at this.y - MIN_TRUNK_HEIGHT_FOR_BRANCHES.
+            // Bottom of the eligible segment is at this.y - gameRules.minHeightForBranches.
             const branchStartY = (this.y - this.height) + (eligibleTrunkHeight * randomProportionInEligible);
 
 
@@ -166,14 +178,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Calculate scale factor based on vertical position
             // eligibleTrunkHeight is the segment of the trunk where branches can grow
-            const eligibleTrunkHeightForScaling = this.height - MIN_TRUNK_HEIGHT_FOR_BRANCHES;
+            const eligibleTrunkHeightForScaling = this.height - gameRules.minHeightForBranches;
             let scaleFactor = 1.0; // Default scale
 
             if (eligibleTrunkHeightForScaling > 0) {
                 // heightFromTrunkTop is how far down from the top of the eligible segment the branch is.
                 // branchStartY is measured from canvas origin (top-left).
                 // Top of the tree is this.y - this.height.
-                // Lowest point for branch is this.y - MIN_TRUNK_HEIGHT_FOR_BRANCHES
+                // Lowest point for branch is this.y - gameRules.minHeightForBranches
                 // Highest point for branch is this.y - this.height (top of the trunk)
                 
                 // proportionFromTop: 0 means at the very top of eligible segment, 1 means at the very bottom.
@@ -211,6 +223,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             this.branches.push(new Branch(this, branchStartX, branchStartY, length, angle, thickness, this.color));
             console.log('Branch added');
+        }
+
+        getTotalLeaves() {
+            let totalLeaves = this.leaves.length; // Count leaves on trunk (if any are still possible)
+            const allBranches = this.getAllBranches();
+            allBranches.forEach(branch => {
+                totalLeaves += branch.leaves.length;
+            });
+            return totalLeaves;
         }
     }
 
@@ -407,7 +428,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Game Setup
     const GROUND_LEVEL_OFFSET = 60; // Pixels from the bottom for the ground - Increased for more root space
-    const MIN_TRUNK_HEIGHT_FOR_BRANCHES = 40; // Min height of trunk before branches can sprout
 
     function initializeGame() {
         resizeCanvas(); // Call resizeCanvas first to set correct canvas dimensions
@@ -432,12 +452,29 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', resizeCanvas);
 
     function updateButtonStates() {
-        // Produce fruit button
-        if (trees.some(tree => tree.height >= 50)) {
-            produceFruitButton.disabled = false;
-        } else {
+        if (trees.length === 0) {
+            // Disable all buttons if no tree exists
+            addBranchButton.disabled = true;
+            growLeavesButton.disabled = true;
             produceFruitButton.disabled = true;
+            plantNewTreeButton.disabled = true;
+            // Keep growHeightButton and growRootsButton enabled or handle separately if needed
+            return;
         }
+
+        const currentTree = trees[0]; // Assuming operations are on the first tree
+
+        // Add Branch button
+        addBranchButton.disabled = currentTree.height < gameRules.minHeightForBranches;
+
+        // Grow Leaves button
+        // Enabled if there's at least one branch.
+        growLeavesButton.disabled = currentTree.getAllBranches().length === 0;
+
+        // Produce fruit button
+        const canProduceFruit = currentTree.height >= gameRules.minHeightForFruits &&
+                                currentTree.getTotalLeaves() >= gameRules.minLeavesForFruits;
+        produceFruitButton.disabled = !canProduceFruit;
 
         // Plant new tree button
         if (trees.some(tree => tree.fruits > 0)) {
@@ -554,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (let i = 0; i < count; i++) {
             // Decide whether to add a branch to the trunk or to an existing branch
-            if (currentTree.branches.length === 0 || Math.random() < 0.4 || currentTree.height < MIN_TRUNK_HEIGHT_FOR_BRANCHES + 20) {
+            if (currentTree.branches.length === 0 || Math.random() < 0.4 || currentTree.height < gameRules.minHeightForBranches + 20) {
                 // Add to trunk if no branches yet, or 40% chance, or if tree is not much taller than min height for branches
                 currentTree.addBranch();
             } else {
