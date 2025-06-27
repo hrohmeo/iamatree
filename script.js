@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctx = canvas.getContext('2d');
 
     // Game Configuration
+    const MAX_TREE_HEIGHT = 1000; // Maximum height a tree can reach
     const gameRules = {
         minHeightForBranches: 100,
         minHeightForFruits: 250,
@@ -57,6 +58,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         growHeight(amount = 10) {
+            if (this.height >= MAX_TREE_HEIGHT) {
+                console.log(`Tree has reached its maximum height of ${MAX_TREE_HEIGHT}px.`);
+                return;
+            }
+
+            if (this.height + amount > MAX_TREE_HEIGHT) {
+                amount = MAX_TREE_HEIGHT - this.height;
+                console.log(`Adjusted growth amount to reach maximum height of ${MAX_TREE_HEIGHT}px.`);
+            }
+
             this.height += amount;
             console.log(`Tree height increased to: ${this.height}`);
 
@@ -520,15 +531,19 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateButtonStates() {
         if (trees.length === 0) {
             // Disable all buttons if no tree exists
+            growHeightButton.disabled = true; // Also disable grow height if no tree
             addBranchButton.disabled = true;
             growLeavesButton.disabled = true;
             produceFruitButton.disabled = true;
             plantNewTreeButton.disabled = true;
-            // Keep growHeightButton and growRootsButton enabled or handle separately if needed
+            // Keep growRootsButton enabled or handle if it should also be disabled
             return;
         }
 
         const currentTree = trees[0]; // Assuming operations are on the first tree
+
+        // Grow Height button
+        growHeightButton.disabled = currentTree.height >= MAX_TREE_HEIGHT;
 
         // Add Branch button
         addBranchButton.disabled = currentTree.height < gameRules.minHeightForBranches;
@@ -539,8 +554,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Produce fruit button
         const canProduceFruit = currentTree.height >= gameRules.minHeightForFruits &&
-                                currentTree.getTotalLeaves() >= gameRules.minLeavesForFruits;
+            currentTree.getTotalLeaves() >= gameRules.minLeavesForFruits;                    
         produceFruitButton.disabled = !canProduceFruit;
+		
 
         // Plant new tree button
         if (trees.some(tree => tree.fruitObjects.length > 0)) {
