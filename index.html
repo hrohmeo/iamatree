@@ -7,13 +7,18 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <header>
+        <h1>I Am A Tree</h1>
+    </header>
+
     <main>
-        <div id="main-content-area">
-            <div id="game-container">
-                <canvas id="game-canvas"></canvas>
-            </div>
-            <div id="ui-container">
-                <div id="tree-controls">
+        <div id="game-container">
+            <canvas id="game-canvas"></canvas>
+        </div>
+
+        <div id="ui-container">
+            <h2>Steuerung</h2>
+            <div id="tree-controls">
                 <div>
                     <label for="grow-height-input" class="visually-hidden">Anzahl Höhe</label>
                     <input type="number" id="grow-height-input" value="1" min="1" aria-label="Anzahl für Höhe wachstum">
@@ -46,9 +51,12 @@
             <div id="score-display">
                 <p>Punktzahl: <span id="current-score">0</span></p>
             </div>
-            </div> <!-- Closing ui-container -->
-        </div> <!-- Closing main-content-area -->
+        </div>
     </main>
+
+    <footer>
+        <p>&copy; 2023 Dein Name oder Spielstudio</p>
+    </footer>
 
     <script src="script.js"></script>
 </body>

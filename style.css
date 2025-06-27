@@ -1,50 +1,11 @@
-html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden; /* Prevent scrollbars from appearing for the page itself */
+body {
     font-family: sans-serif;
-    background-color: #f0f0f0; /* Background for any small slivers not covered by main */
-}
-
-main {
-    display: flex;
-    height: 100%;
-    width: 100%;
-}
-
-#main-content-area {
-    display: flex;
-    flex-grow: 1; /* Allow this area to grow and fill the main tag */
-    height: 100%;
-}
-
-#game-container {
-    flex-grow: 1; /* Game container takes up remaining space */
-    height: 100%;
-    background-color: #e0f2e0; /* Light green background for the game area */
-    display: flex; /* To center canvas if it has fixed size, or ensure it fills */
-    justify-content: center;
-    align-items: center;
-    border-right: 1px solid #ccc; /* Optional: a separator line */
-}
-
-#game-canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: contain; /* Ensure canvas content scales nicely if it has an intrinsic size */
-}
-
-#ui-container {
-    width: 300px; /* Fixed width for UI, adjust as needed */
-    height: 100%; /* Full height */
-    padding: 20px;
-    background-color: #fff;
-    box-shadow: -2px 0 5px rgba(0,0,0,0.1); /* Shadow on the left side */
-    overflow-y: auto; /* Allow scrolling for UI content if it overflows */
+    margin: 0;
+    background-color: #f0f0f0;
     display: flex;
     flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
 }
 
 /* Visually hidden class for accessibility */
@@ -59,29 +20,70 @@ main {
     border: 0;
 }
 
-#tree-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 10px; /* Space between control groups */
-}
-
 #tree-controls div {
-    display: flex;
+    margin-bottom: 10px; /* Add some space between input/button groups */
+    display: flex; /* Align input and button nicely */
     align-items: center;
-    gap: 10px; /* Space between label/input and button */
 }
 
 #tree-controls input[type="number"] {
-    width: 60px;
+    width: 60px; /* Adjust width as needed */
+    margin-right: 10px;
     padding: 5px;
     border: 1px solid #ccc;
     border-radius: 4px;
-    flex-shrink: 0; /* Prevent input from shrinking if button text is long */
+}
+
+header {
+    background-color: #4CAF50;
+    color: white;
+    padding: 1em 0;
+    text-align: center;
+    width: 100%;
+}
+
+main {
+    display: flex;
+    flex-wrap: wrap; /* Allow wrapping for smaller screens */
+    justify-content: center;
+    padding: 20px;
+    gap: 20px; /* Space between game container and UI container */
+    width: 100%;
+    max-width: 1200px; /* Max width for the main content area */
+}
+
+#game-container {
+    border: 2px solid #333;
+    width: 800px; /* Default width */
+    height: 600px; /* Default height */
+    max-width: 100%; /* Ensure it's responsive */
+    background-color: #e0f2e0; /* Light green background for the game area */
+}
+
+#game-canvas {
+    display: block; /* Remove extra space below canvas */
+    width: 100%;
+    height: 100%;
+}
+
+#ui-container {
+    border: 1px solid #ccc;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    width: 300px; /* Fixed width for UI */
+    max-width: 100%; /* Ensure it's responsive */
+}
+
+#ui-container h2 {
+    margin-top: 0;
+    color: #333;
+    text-align: center;
 }
 
 #tree-controls button,
 #plant-tree-controls button {
-    flex-grow: 1; /* Allow buttons to take available space in their flex container */
     display: block;
     width: 100%;
     padding: 10px;
@@ -123,40 +125,29 @@ main {
     font-weight: bold;
 }
 
+footer {
+    text-align: center;
+    padding: 1em 0;
+    background-color: #333;
+    color: white;
+    width: 100%;
+    margin-top: auto; /* Push footer to the bottom */
+}
+
 /* Responsive adjustments */
-/* Basic responsive adjustments: Stack UI below game on small screens */
 @media (max-width: 768px) {
-    #main-content-area {
+    main {
         flex-direction: column;
+        align-items: center;
     }
 
     #game-container {
-        width: 100%;
-        height: 70vh; /* Example: Game takes 70% of viewport height */
-        border-right: none; /* Remove side border */
-        border-bottom: 1px solid #ccc; /* Add bottom border as separator */
+        width: 95%; /* Adjust width for smaller screens */
+        height: auto; /* Adjust height for smaller screens */
+        aspect-ratio: 4 / 3; /* Maintain aspect ratio */
     }
 
     #ui-container {
-        width: 100%;
-        height: 30vh; /* Example: UI takes 30% of viewport height */
-        box-shadow: none; /* Remove side shadow */
-        border-top: 1px solid #ccc; /* Add top border for separation */
-    }
-
-    #tree-controls {
-        flex-direction: row; /* Arrange controls horizontally */
-        flex-wrap: wrap; /* Allow wrapping */
-        justify-content: space-around; /* Distribute items */
-    }
-
-    #tree-controls div {
-        flex-basis: 45%; /* Each control group takes about half the width */
-        /* Adjust gap or margins as needed for spacing */
-    }
-
-    #tree-controls button,
-    #plant-tree-controls button {
-        width: auto; /* Allow button width to be determined by content or flex item rules */
+        width: 95%; /* Adjust width for smaller screens */
     }
 }
