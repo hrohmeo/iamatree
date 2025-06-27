@@ -546,16 +546,15 @@ document.addEventListener('DOMContentLoaded', () => {
         growHeightButton.disabled = currentTree.height >= MAX_TREE_HEIGHT;
 
         // Add Branch button
-        addBranchButton.disabled = currentTree.height < gameRules.minHeightForBranches || currentTree.height >= MAX_TREE_HEIGHT;
+        addBranchButton.disabled = currentTree.height < gameRules.minHeightForBranches;
 
         // Grow Leaves button
-        // Enabled if there's at least one branch. Also, tree should not be at max height.
-        growLeavesButton.disabled = currentTree.getAllBranches().length === 0 || currentTree.height >= MAX_TREE_HEIGHT;
+        // Enabled if there's at least one branch.
+        growLeavesButton.disabled = currentTree.getAllBranches().length === 0;
 
         // Produce fruit button
         const canProduceFruit = currentTree.height >= gameRules.minHeightForFruits &&
-                                currentTree.getTotalLeaves() >= gameRules.minLeavesForFruits &&
-                                currentTree.height < MAX_TREE_HEIGHT; // Cannot produce fruit if at max height
+                                currentTree.getTotalLeaves() >= gameRules.minLeavesForFruits;
         produceFruitButton.disabled = !canProduceFruit;
 
         // Plant new tree button
