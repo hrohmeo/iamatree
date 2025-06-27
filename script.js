@@ -628,7 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        // updateScore(); // Branches might contribute to score later, if desired
+        updateScore(); // Branches might contribute to score later, if desired
     });
 
     // Helper function in Tree class to get all branches (main + children)
