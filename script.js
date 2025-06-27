@@ -16,12 +16,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Tree class
     class Tree {
-        constructor(x, y, height = 10, width = 5, color = 'saddlebrown') {
+        constructor(x, y, height = 10, width = 5, color = 'saddlebrown', maxWidth = 30) {
             this.x = x;
             this.y = y; // Base of the trunk
             this.height = height;
             this.width = width;
             this.color = color;
+            this.maxWidth = maxWidth; // Maximum width the tree can reach
             this.leaves = []; // To store leaf objects - will be deprecated for direct trunk leaves
             this.roots = [];  // To store root objects
             this.branches = []; // To store branch objects
@@ -56,13 +57,37 @@ document.addEventListener('DOMContentLoaded', () => {
         growHeight(amount = 10) {
             this.height += amount;
             console.log(`Tree height increased to: ${this.height}`);
-            updateScore(); // Score might depend on height
+
+            // Grow width proportionally to height, up to maxWidth
+            // The growth factor for width can be adjusted (e.g., 0.05 means width increases by 5% of height increase)
+            const widthIncreaseFactor = 0.05; // Adjust this factor as needed for desired growth rate
+            const potentialWidthIncrease = amount * widthIncreaseFactor;
+
+            if (this.width < this.maxWidth) {
+                this.width += potentialWidthIncrease;
+                if (this.width > this.maxWidth) {
+                    this.width = this.maxWidth;
+                }
+                console.log(`Tree width increased to: ${this.width}`);
+            }
+
+            updateScore(); // Score might depend on height and width
         }
 
+        // This method might still be useful for direct width manipulation if needed elsewhere,
+        // or can be removed if all width growth is handled by growHeight.
+        // For now, let's keep it but ensure it also respects maxWidth.
         growWidth(amount = 2) {
-            this.width += amount;
-            console.log(`Tree width increased to: ${this.width}`);
-            updateScore(); // Score might depend on width/volume
+            if (this.width < this.maxWidth) {
+                this.width += amount;
+                if (this.width > this.maxWidth) {
+                    this.width = this.maxWidth;
+                }
+                console.log(`Tree width increased to: ${this.width}`);
+                updateScore(); // Score might depend on width/volume
+            } else {
+                console.log(`Tree width already at maximum: ${this.maxWidth}`);
+            }
         }
 
         addLeaf(size = 10, color = 'green') {
@@ -523,12 +548,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (trees.length > 0) {
             const inputAmount = parseInt(growHeightInput.value, 10) || 1;
             const growthAmount = inputAmount * 10; // Scale factor of 10
-            trees[0].growHeight(growthAmount);
-            // Width growth should be relative to the input unit, not the final pixel growth,
-            // to maintain the same proportional feel as before.
-            // E.g., input 1 (grows 10px) should have same width increase as input 1 before this change.
-            trees[0].growWidth(inputAmount * 0.05);
-            updateScore();
+            trees[0].growHeight(growthAmount); // growHeight now handles width increase
+            // The old growWidth call is removed: trees[0].growWidth(inputAmount * 0.05);
+            updateScore(); // updateScore is already called within growHeight, but calling again here ensures UI consistency if growHeight's call is removed later.
         }
     });
 
