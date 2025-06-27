@@ -26,7 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
             this.leaves = []; // To store leaf objects - will be deprecated for direct trunk leaves
             this.roots = [];  // To store root objects
             this.branches = []; // To store branch objects
-            this.fruits = 0;
+            this.fruits = 0; // Counter for scoring, might be phased out
+            this.fruitObjects = []; // To store Fruit objects
         }
 
         draw() {
@@ -51,7 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // 5. Blätter am Stamm zeichnen (Fallback)
             this.leaves.forEach(leaf => leaf.draw());
 
-            // TODO: Draw fruits
+            // 6. Früchte zeichnen
+            this.fruitObjects.forEach(fruit => fruit.draw());
         }
 
         growHeight(amount = 10) {
@@ -127,32 +129,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (this.height < gameRules.minHeightForFruits) {
                 console.log(`Tree is not tall enough to produce fruit. Min height: ${gameRules.minHeightForFruits}, current: ${this.height}`);
-                return; // Stop if height condition not met
+                return;
             }
 
             if (totalLeaves < gameRules.minLeavesForFruits) {
                 console.log(`Tree does not have enough leaves to produce fruit. Min leaves: ${gameRules.minLeavesForFruits}, current: ${totalLeaves}`);
-                return; // Stop if leaf condition not met
+                return;
+            }
+
+            const branchesWithLeaves = this.getAllBranches().filter(branch => branch.leaves.length > 0);
+            if (branchesWithLeaves.length === 0) {
+                console.log("Cannot produce fruit: No branches have leaves.");
+                return;
             }
 
             for (let i = 0; i < count; i++) {
-                // Conditions already checked, so we can produce fruit
-                this.fruits += 1;
+                // Select a random branch that has leaves
+                const randomBranchWithLeaves = branchesWithLeaves[Math.floor(Math.random() * branchesWithLeaves.length)];
+
+                // Select a random leaf on that branch to determine the fruit's position
+                // Or, for simplicity, place it near the end of the branch or a random position on the branch
+                // Similar to how leaves are placed. Let's adapt the leaf placement logic.
+
+                const positionOnBranch = 0.2 + Math.random() * 0.8; // From 20% to 100% along the branch
+                const fruitBaseX = randomBranchWithLeaves.startX + Math.cos(randomBranchWithLeaves.angle) * randomBranchWithLeaves.length * positionOnBranch;
+                const fruitBaseY = randomBranchWithLeaves.startY + Math.sin(randomBranchWithLeaves.angle) * randomBranchWithLeaves.length * positionOnBranch;
+
+                const fruitSize = 8 + Math.random() * 4; // Fruit size, slightly smaller than average leaves
+
+                // Offset fruit slightly like leaves so they don't all sit directly on the branch line
+                const perpendicularOffset = (Math.random() - 0.5) * fruitSize * 2;
+                const fruitX = fruitBaseX + Math.sin(randomBranchWithLeaves.angle) * perpendicularOffset;
+                const fruitY = fruitBaseY - Math.cos(randomBranchWithLeaves.angle) * perpendicularOffset;
+
+                this.fruitObjects.push(new Fruit(fruitX, fruitY, fruitSize, 'red'));
+                this.fruits++; // Keep this counter for now, for score and possibly other logic.
                 producedCount++;
             }
 
             if (producedCount > 0) {
-                console.log(`${producedCount} fruit(s) produced. Total fruits: ${this.fruits}`);
+                console.log(`${producedCount} fruit(s) produced. Total fruit objects: ${this.fruitObjects.length}`);
                 updateScore(); // Score depends on fruits
-                // Button state update will be handled by updateScore -> updateButtonStates
             }
-            // No need to directly manipulate plant-new-tree-button here, updateScore will do it.
         }
 
         getScore() {
             // Basic score: height + volume (width as proxy) + fruits
             const volumeScore = this.width * this.height / 10; // Example volume calculation
-            return Math.round(this.height + volumeScore + (this.fruits * 5));
+            // Using this.fruitObjects.length for score directly related to visible fruits.
+            return Math.round(this.height + volumeScore + (this.fruitObjects.length * 5));
         }
 
         addBranch() {
@@ -257,6 +282,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 totalLeaves += branch.leaves.length;
             });
             return totalLeaves;
+        }
+    }
+
+    class Fruit {
+        constructor(x, y, size, color = 'red') {
+            this.x = x;
+            this.y = y;
+            this.size = size;
+            this.color = color;
+        }
+
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
+            ctx.fill();
         }
     }
 
@@ -502,7 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
         produceFruitButton.disabled = !canProduceFruit;
 
         // Plant new tree button
-        if (trees.some(tree => tree.fruits > 0)) {
+        if (trees.some(tree => tree.fruitObjects.length > 0)) {
             plantNewTreeButton.disabled = false;
         } else {
             plantNewTreeButton.disabled = true;
@@ -584,9 +625,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     plantNewTreeButton.addEventListener('click', () => {
-        const parentTree = trees.find(tree => tree.fruits > 0);
+        const parentTree = trees.find(tree => tree.fruitObjects.length > 0);
         if (parentTree) {
-            parentTree.fruits--; // Use one fruit to plant a new tree
+            parentTree.fruitObjects.pop(); // Remove one fruit object
+            parentTree.fruits = parentTree.fruitObjects.length; // Update the counter if still used elsewhere
 
             const newX = Math.random() * (canvas.width - 60) + 30; // Random X, away from edges
             const newY = canvas.height - GROUND_LEVEL_OFFSET; // Base of the trunk
