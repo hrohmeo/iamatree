@@ -607,110 +607,106 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawGame() {
-        // Clear canvas (before transformations)
-        ctx.save(); // Save the default state
-        ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform to identity
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.restore(); // Restore to whatever state it was (should be default)
+        // Global save before any drawing
+        ctx.save(); // Save original canvas context state
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform to identity for clearing
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the entire canvas
 
-        // Apply pan and zoom transformations for the entire game world
-        ctx.save();
-        ctx.translate(panX, panY);
-        ctx.scale(zoomLevel, zoomLevel);
+        // --- Background Drawing (Fixed vertically, scrolls horizontally, zooms) ---
+        ctx.save(); // Save identity state before background transforms
 
-        // --- Background Drawing Starts ---
+        // Apply transformations for background: panX, zoom, but NOT panY for vertical fix
+        ctx.translate(panX, 0); // Apply horizontal pan ONLY
+        ctx.scale(zoomLevel, zoomLevel); // Apply zoom
+
+        // 1. Sky color
+        // Covers the entire viewport in the background's transformed space.
+        // (0,0) in this transformed space is (panX, 0) in screen space.
+        // To fill the viewport from its top-left, we need to draw from (-panX/zoomLevel, 0)
+        ctx.fillStyle = '#4ab2e9'; // Sky color
+        ctx.fillRect(
+            -panX / zoomLevel,      // Start X corrected for panX and zoom
+            0,                      // Start Y (top of the viewport in this transformed space)
+            canvas.width / zoomLevel, // Width to cover the viewport
+            canvas.height / zoomLevel // Height to cover the viewport
+        );
+
+        const Y_BACKGROUND_SHIFT = 150; // Pixels to shift image down, tree appears higher
+
         if (backgroundImageLoaded) {
             const imgWidth = backgroundImage.naturalWidth;
             const imgHeight = backgroundImage.naturalHeight;
 
-            // Calculate the visible portion of the world in world coordinates
-            const viewX = -panX / zoomLevel;
-            const viewY = -panY / zoomLevel;
-            const viewWidth = canvas.width / zoomLevel;
-            const viewHeight = canvas.height / zoomLevel;
+            // Calculate the screen Y where the bottom of the image should align (ground + shift)
+            let imageBottomTargetScreenY = canvas.height - GROUND_LEVEL_OFFSET + Y_BACKGROUND_SHIFT;
 
-            // --- 1. Draw Background Colors ---
-            // Top color (#4ab2e9)
-            ctx.fillStyle = '#4ab2e9';
-            ctx.fillRect(viewX, viewY, viewWidth, viewHeight);
+            // Convert this target screen Y to the Y coordinate in the background's transformed space
+            // (which is screen space scaled by zoomLevel, but not panned by panY)
+            let imageTop_TransformedY = (imageBottomTargetScreenY / zoomLevel) - imgHeight;
 
-            // --- 2. Draw Tiled Background Image ---
-            // The image should be placed towards the "bottom" of the sky.
-            // Let's assume the image's bottom edge aligns with where the "ground color" begins.
-            // For now, let ground color start where tree roots typically are, or slightly above.
-            // The groundY for drawing the actual ground line is: canvas.height - GROUND_LEVEL_OFFSET + 2
-            // This groundY is in screen coordinates before zoom/pan.
-            // We need to define a "horizon" or "image bottom" in world coordinates.
-            // Let's place the bottom of the image at a Y coordinate that corresponds to the visual ground.
-            // The ground line is drawn at `canvas.height - GROUND_LEVEL_OFFSET + 2` (screen space)
-            // World Y for image bottom:
-            const imageBottomY = (canvas.height - GROUND_LEVEL_OFFSET) / zoomLevel - viewY; // Approximation for now
-                                                                                          // This needs to be relative to the world, not screen
-            const worldImageBottomY = (canvas.height - GROUND_LEVEL_OFFSET); // This is a screen coordinate target.
+            // Tiling logic for X:
+            // viewX_bg is the left edge of the viewport in the background's transformed space
+            const viewX_bg = -panX / zoomLevel;
+            const viewWidth_bg = canvas.width / zoomLevel;
 
-            // Let's try to fix the image's bottom relative to the game's ground level.
-            // The game's ground level is effectively `canvas.height - GROUND_LEVEL_OFFSET` in screen space.
-            // In world space, this means `( (canvas.height - GROUND_LEVEL_OFFSET) - panY ) / zoomLevel`.
-            // This is where the visual ground line is. We want the image to sit on this.
-            const imageWorldY = (canvas.height - GROUND_LEVEL_OFFSET - imgHeight * zoomLevel - panY) / zoomLevel;
-                                //This calculation is getting complex due to mapping screen space to world space.
-                                //Let's simplify: define the image's bottom Y in world units first.
-                                //The trees are planted at `initialTreeY = canvas.height - GROUND_LEVEL_OFFSET`.
-                                //So, this `initialTreeY` can be our reference world Y for the ground.
-                                //The image should sit on this line.
-            const imageBaseWorldY = (canvas.height - GROUND_LEVEL_OFFSET); // Base Y for trees in screen space, effectively world 0 for tree base
-            const imageTopWorldY = imageBaseWorldY - imgHeight;
+            const startTileBgX = Math.floor(viewX_bg / imgWidth) * imgWidth;
+            const endTileBgX = viewX_bg + viewWidth_bg;
 
-
-            // Tiling logic:
-            // Start drawing from the left edge of the view, ensuring pattern alignment
-            const startX = Math.floor(viewX / imgWidth) * imgWidth;
-            const endX = viewX + viewWidth;
-
-            for (let x = startX; x < endX; x += imgWidth) {
-                // We need to draw the image such that its bottom edge is at `imageBaseWorldY`.
-                // The `drawImage` y-coordinate is the top-left of the image.
-                // So, y = imageBaseWorldY - imgHeight (in world coordinates)
-                ctx.drawImage(backgroundImage, x, imageTopWorldY, imgWidth, imgHeight);
+            for (let x_tile = startTileBgX; x_tile < endTileBgX; x_tile += imgWidth) {
+                ctx.drawImage(backgroundImage, x_tile, imageTop_TransformedY, imgWidth, imgHeight);
             }
 
-            // --- 3. Draw Bottom Background Color ---
-            // This color fills the area below the image.
-            ctx.fillStyle = '#6eb23e';
-            // The fill should start from the bottom of the image and go downwards.
-            // The image bottom is at `imageBaseWorldY`.
-            // It should fill from imageBaseWorldY to the bottom of the view.
-            ctx.fillRect(viewX, imageBaseWorldY, viewWidth, viewHeight - (imageBaseWorldY - viewY) );
+            // 3. Draw Bottom Background Color (Ground below image)
+            // This should start from the bottom of the image in the background's transformed space.
+            const groundFillTransformedY = imageTop_TransformedY + imgHeight;
+            ctx.fillStyle = '#6eb23e'; // Ground color
+            ctx.fillRect(
+                viewX_bg,               // Start X from the left of the viewport
+                groundFillTransformedY, // Start Y from the bottom of the image
+                viewWidth_bg,           // Fill the width of the viewport
+                (canvas.height / zoomLevel) - groundFillTransformedY + (canvas.height * (zoomLevel-1) / zoomLevel) // Height to fill remaining space
+                                                                                                   // The height calculation needs to be robust for zoom.
+                                                                                                   // It should fill from groundFillTransformedY to bottom of viewport.
+                                                                                                   // Bottom of viewport in this transformed space is canvas.height / zoomLevel.
+            );
+             ctx.fillRect(
+                viewX_bg,
+                groundFillTransformedY,
+                viewWidth_bg,
+                (canvas.height / zoomLevel) - groundFillTransformedY // Corrected height
+            );
 
 
         } else {
-            // Fallback if image not loaded: fill with a default sky color
-            ctx.fillStyle = '#4ab2e9'; // Default sky
-            ctx.fillRect(-panX / zoomLevel, -panY / zoomLevel, canvas.width / zoomLevel, canvas.height / zoomLevel);
-            ctx.fillStyle = '#6eb23e'; // Default ground
-            const groundStartWorldY = (canvas.height - GROUND_LEVEL_OFFSET - panY) / zoomLevel;
-            ctx.fillRect(-panX / zoomLevel, groundStartWorldY, canvas.width / zoomLevel, (canvas.height / zoomLevel) - groundStartWorldY + (-panY / zoomLevel) );
+            // Fallback if image not loaded: still draw ground color based on GROUND_LEVEL_OFFSET
+            ctx.fillStyle = '#6eb23e'; // Default ground color
+            // Ground starts at (canvas.height - GROUND_LEVEL_OFFSET) in screen space.
+            // Convert to background's transformed space Y:
+            const groundStartTransformedY = (canvas.height - GROUND_LEVEL_OFFSET) / zoomLevel;
+            ctx.fillRect(
+                -panX / zoomLevel,      // Start X corrected for panX and zoom
+                groundStartTransformedY,
+                canvas.width / zoomLevel, // Width to cover viewport
+                (canvas.height / zoomLevel) - groundStartTransformedY // Height to fill bottom part
+            );
         }
+        ctx.restore(); // Restore to identity transform (was saved before background transforms)
         // --- Background Drawing Ends ---
 
 
-        // Draw ground (simple line)
-        // This should be drawn on top of the background colors/image.
-        ctx.strokeStyle = 'SaddleBrown';
-        ctx.lineWidth = 4; // Adjusted for world coordinates (zoom will scale it)
-        ctx.beginPath();
-        const groundLineY = canvas.height - GROUND_LEVEL_OFFSET; // Reference in original screen coordinate system
-                                                                // This is effectively a world Y coordinate.
-        // We need to draw this line across the entire visible world width.
-        ctx.moveTo(-panX / zoomLevel, groundLineY);
-        ctx.lineTo((-panX + canvas.width) / zoomLevel, groundLineY);
-        // ctx.stroke(); // Ground line removed as per request
+        // --- Foreground Drawing (Trees, etc. - scrolls with panX and panY, zooms) ---
+        ctx.save(); // Save identity state again before foreground transforms
+        ctx.translate(panX, panY); // Apply full pan (X and Y)
+        ctx.scale(zoomLevel, zoomLevel); // Apply zoom
 
-
-        // Update and draw game objects (trees, etc.)
+        // Game elements are drawn relative to this transformed space.
+        // The ground line for trees is at y = canvas.height - GROUND_LEVEL_OFFSET (in world units)
         trees.forEach(tree => tree.draw());
 
-        ctx.restore(); // Restore to pre-zoom/pan state (identity transform)
+        ctx.restore(); // Restore to identity transform
+        // --- Foreground Drawing Ends ---
+
+        ctx.restore(); // Restore to original canvas context state (saved at the very beginning)
     }
 
     // Event Listeners for UI
