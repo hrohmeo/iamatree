@@ -658,29 +658,37 @@ document.addEventListener('DOMContentLoaded', () => {
                                 //The trees are planted at `initialTreeY = canvas.height - GROUND_LEVEL_OFFSET`.
                                 //So, this `initialTreeY` can be our reference world Y for the ground.
                                 //The image should sit on this line.
-            const imageBaseWorldY = (canvas.height - GROUND_LEVEL_OFFSET); // Base Y for trees in screen space, effectively world 0 for tree base
-            const imageTopWorldY = imageBaseWorldY - imgHeight;
+            // const imageBaseWorldY = (canvas.height - GROUND_LEVEL_OFFSET); // Base Y for trees in screen space, effectively world 0 for tree base
+            // const imageTopWorldY = imageBaseWorldY - imgHeight; // OLD LOGIC
 
-
-            // Tiling logic:
-            // Start drawing from the left edge of the view, ensuring pattern alignment
+            // New logic: Background image should always start drawing from the top-left of the current view.
+            // Tiling logic for background image
             const startX = Math.floor(viewX / imgWidth) * imgWidth;
             const endX = viewX + viewWidth;
+            const startY = Math.floor(viewY / imgHeight) * imgHeight; // Start drawing from the top edge of the view
+            const endY = viewY + viewHeight;
 
-            for (let x = startX; x < endX; x += imgWidth) {
-                // We need to draw the image such that its bottom edge is at `imageBaseWorldY`.
-                // The `drawImage` y-coordinate is the top-left of the image.
-                // So, y = imageBaseWorldY - imgHeight (in world coordinates)
-                ctx.drawImage(backgroundImage, x, imageTopWorldY, imgWidth, imgHeight);
+
+            for (let y = startY; y < endY; y += imgHeight) {
+                for (let x = startX; x < endX; x += imgWidth) {
+                    ctx.drawImage(backgroundImage, x, y, imgWidth, imgHeight);
+                }
             }
 
             // --- 3. Draw Bottom Background Color ---
-            // This color fills the area below the image.
+            // This color fills the area below the image IF the image doesn't cover everything.
+            // This part might need adjustment or removal if the image is expected to always fill the sky.
+            // For now, let's assume the sky color above the image is handled by the top color fill.
+            // The ground color should appear below where the trees are planted.
+            const groundColorY = (canvas.height - GROUND_LEVEL_OFFSET); // This is a world Y coordinate where ground visually starts.
             ctx.fillStyle = '#6eb23e';
-            // The fill should start from the bottom of the image and go downwards.
-            // The image bottom is at `imageBaseWorldY`.
-            // It should fill from imageBaseWorldY to the bottom of the view.
-            ctx.fillRect(viewX, imageBaseWorldY, viewWidth, viewHeight - (imageBaseWorldY - viewY) );
+            // Fill from groundColorY to the bottom of the view.
+            // Ensure this fill respects the view boundaries.
+            const fillStartY = Math.max(groundColorY, viewY); // Start filling from groundColorY or viewY if ground is above viewY
+            const fillHeight = (viewY + viewHeight) - fillStartY;
+            if (fillHeight > 0) {
+                 ctx.fillRect(viewX, fillStartY, viewWidth, fillHeight);
+            }
 
 
         } else {
