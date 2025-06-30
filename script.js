@@ -21,6 +21,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let panX = 0; // Renamed from offsetX to avoid conflict with event properties
     let panY = 0; // Renamed from offsetY
 
+    // World Coordinates and Layout Constants
+    const WORLD_BACKGROUND_IMAGE_TOP_Y = 0; // Background image starts at Y=0 in world space
+    const TREE_BASE_OFFSET_FROM_BG_TOP = 850; // Tree base is 850px below the background image's top
+    const WORLD_TREE_BASE_Y = WORLD_BACKGROUND_IMAGE_TOP_Y + TREE_BASE_OFFSET_FROM_BG_TOP; // Tree's Y coordinate
+
     // Background Image
     const backgroundImage = new Image();
     backgroundImage.src = 'treebg.png'; // Assume treebg.png is in the same directory
@@ -527,15 +532,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const produceFruitInput = document.getElementById('produce-fruit-input');
 
     // Game Setup
-    const GROUND_LEVEL_OFFSET = 210; // Pixels from the bottom for the ground - Increased for more root space
+    // const GROUND_LEVEL_OFFSET = 210; // This is effectively replaced by WORLD_TREE_BASE_Y logic
 
     function initializeGame() {
         resizeCanvas(); // Call resizeCanvas first to set correct canvas dimensions
 
         // Create the first tree
         if (trees.length === 0) {
-            const initialTreeX = canvas.width / 2;
-            const initialTreeY = canvas.height - GROUND_LEVEL_OFFSET;
+            const initialTreeX = canvas.width / 2; // X can still be canvas-relative for initial placement
+            const initialTreeY = WORLD_TREE_BASE_Y; // Use the new world coordinate
             trees.push(new Tree(initialTreeX, initialTreeY));
         }
         updateButtonStates(); // Centralized button state management
@@ -644,22 +649,21 @@ document.addEventListener('DOMContentLoaded', () => {
             // Let's place the bottom of the image at a Y coordinate that corresponds to the visual ground.
             // The ground line is drawn at `canvas.height - GROUND_LEVEL_OFFSET + 2` (screen space)
             // World Y for image bottom:
-            const imageBottomY = (canvas.height - GROUND_LEVEL_OFFSET) / zoomLevel - viewY; // Approximation for now
-                                                                                          // This needs to be relative to the world, not screen
-            const worldImageBottomY = (canvas.height - GROUND_LEVEL_OFFSET); // This is a screen coordinate target.
+            // const imageBottomY = (canvas.height - GROUND_LEVEL_OFFSET) / zoomLevel - viewY; // OLD
+            // const worldImageBottomY = (canvas.height - GROUND_LEVEL_OFFSET); // OLD
 
             // Let's try to fix the image's bottom relative to the game's ground level.
             // The game's ground level is effectively `canvas.height - GROUND_LEVEL_OFFSET` in screen space.
             // In world space, this means `( (canvas.height - GROUND_LEVEL_OFFSET) - panY ) / zoomLevel`.
             // This is where the visual ground line is. We want the image to sit on this.
-            const imageWorldY = (canvas.height - GROUND_LEVEL_OFFSET - imgHeight * zoomLevel - panY) / zoomLevel;
+            // const imageWorldY = (canvas.height - GROUND_LEVEL_OFFSET - imgHeight * zoomLevel - panY) / zoomLevel; // OLD
                                 //This calculation is getting complex due to mapping screen space to world space.
                                 //Let's simplify: define the image's bottom Y in world units first.
                                 //The trees are planted at `initialTreeY = canvas.height - GROUND_LEVEL_OFFSET`.
                                 //So, this `initialTreeY` can be our reference world Y for the ground.
                                 //The image should sit on this line.
-            const imageBaseWorldY = (canvas.height - GROUND_LEVEL_OFFSET); // Base Y for trees in screen space, effectively world 0 for tree base
-            const imageTopWorldY = imageBaseWorldY - imgHeight;
+            // const imageBaseWorldY = (canvas.height - GROUND_LEVEL_OFFSET); // OLD - Base Y for trees in screen space, effectively world 0 for tree base
+            const imageTopToDrawAt = WORLD_BACKGROUND_IMAGE_TOP_Y; // NEW - Background image starts at this world Y
 
 
             // Tiling logic:
@@ -671,16 +675,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 // We need to draw the image such that its bottom edge is at `imageBaseWorldY`.
                 // The `drawImage` y-coordinate is the top-left of the image.
                 // So, y = imageBaseWorldY - imgHeight (in world coordinates)
-                ctx.drawImage(backgroundImage, x, imageTopWorldY, imgWidth, imgHeight);
+                ctx.drawImage(backgroundImage, x, imageTopToDrawAt, imgWidth, imgHeight);
             }
 
             // --- 3. Draw Bottom Background Color ---
-            // This color fills the area below the image.
+            // This color fills the area below the image (or below the tree base).
             ctx.fillStyle = '#6eb23e';
-            // The fill should start from the bottom of the image and go downwards.
-            // The image bottom is at `imageBaseWorldY`.
-            // It should fill from imageBaseWorldY to the bottom of the view.
-            ctx.fillRect(viewX, imageBaseWorldY, viewWidth, viewHeight - (imageBaseWorldY - viewY) );
+            // The fill should start from where the tree base is (or image bottom) and go downwards.
+            const groundColorStartY = WORLD_BACKGROUND_IMAGE_TOP_Y + imgHeight; // Bottom of the background image
+            // It should fill from groundColorStartY to the bottom of the view.
+            ctx.fillRect(viewX, groundColorStartY, viewWidth, viewHeight - (groundColorStartY - viewY) );
 
 
         } else {
@@ -688,23 +692,23 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = '#4ab2e9'; // Default sky
             ctx.fillRect(-panX / zoomLevel, -panY / zoomLevel, canvas.width / zoomLevel, canvas.height / zoomLevel);
             ctx.fillStyle = '#6eb23e'; // Default ground
-            const groundStartWorldY = (canvas.height - GROUND_LEVEL_OFFSET - panY) / zoomLevel;
+            // Fallback ground starts at WORLD_TREE_BASE_Y if image fails to load
+            const groundStartWorldY = WORLD_TREE_BASE_Y;
             ctx.fillRect(-panX / zoomLevel, groundStartWorldY, canvas.width / zoomLevel, (canvas.height / zoomLevel) - groundStartWorldY + (-panY / zoomLevel) );
         }
         // --- Background Drawing Ends ---
 
 
-        // Draw ground (simple line)
+        // Draw ground (simple line) - Optional: if you want a line at the tree base
         // This should be drawn on top of the background colors/image.
-        ctx.strokeStyle = 'SaddleBrown';
-        ctx.lineWidth = 4; // Adjusted for world coordinates (zoom will scale it)
-        ctx.beginPath();
-        const groundLineY = canvas.height - GROUND_LEVEL_OFFSET; // Reference in original screen coordinate system
-                                                                // This is effectively a world Y coordinate.
+        // ctx.strokeStyle = 'SaddleBrown';
+        // ctx.lineWidth = 4; // Adjusted for world coordinates (zoom will scale it)
+        // ctx.beginPath();
+        // const groundLineY = WORLD_TREE_BASE_Y; // Tree base is the new ground line
         // We need to draw this line across the entire visible world width.
-        ctx.moveTo(-panX / zoomLevel, groundLineY);
-        ctx.lineTo((-panX + canvas.width) / zoomLevel, groundLineY);
-        // ctx.stroke(); // Ground line removed as per request
+        // ctx.moveTo(-panX / zoomLevel, groundLineY);
+        // ctx.lineTo((-panX + canvas.width) / zoomLevel, groundLineY);
+        // ctx.stroke(); // Ground line removed as per request, but logic retained if needed
 
 
         // Update and draw game objects (trees, etc.)
@@ -760,7 +764,7 @@ document.addEventListener('DOMContentLoaded', () => {
             parentTree.fruits = parentTree.fruitObjects.length; // Update the counter if still used elsewhere
 
             const newX = Math.random() * (canvas.width - 60) + 30; // Random X, away from edges
-            const newY = canvas.height - GROUND_LEVEL_OFFSET; // Base of the trunk
+            const newY = WORLD_TREE_BASE_Y; // Base of the trunk using the world coordinate
 
             // TODO: Later, allow choosing tree type
             const newTree = new Tree(newX, newY);
