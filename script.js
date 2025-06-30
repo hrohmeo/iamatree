@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Initial angle: strictly downwards (PI/4 to 3PI/4)
             // Math.PI / 2 is straight down. Variation is Math.PI / 4 on either side.
             const baseAngle = Math.PI / 2;
-            const angleDeviation = Math.PI / 4; // Max 45 degrees deviation from straight down
+            const angleDeviation = Math.PI / 2.5; // Max 45 degrees deviation from straight down
             const initialAngle = baseAngle + (Math.random() * angleDeviation * 2 - angleDeviation);
 
             const newRoot = new Root(this, rootStartX, rootStartY, initialLength, initialAngle, initialThickness, this.color);
