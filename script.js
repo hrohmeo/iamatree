@@ -527,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const produceFruitInput = document.getElementById('produce-fruit-input');
 
     // Game Setup
-    const GROUND_LEVEL_OFFSET = 60; // Pixels from the bottom for the ground - Increased for more root space
+    const GROUND_LEVEL_OFFSET = 210; // Pixels from the bottom for the ground - Increased for more root space
 
     function initializeGame() {
         resizeCanvas(); // Call resizeCanvas first to set correct canvas dimensions
@@ -704,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // We need to draw this line across the entire visible world width.
         ctx.moveTo(-panX / zoomLevel, groundLineY);
         ctx.lineTo((-panX + canvas.width) / zoomLevel, groundLineY);
-        ctx.stroke();
+        // ctx.stroke(); // Ground line removed as per request
 
 
         // Update and draw game objects (trees, etc.)
