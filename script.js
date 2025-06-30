@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // World Coordinates and Layout Constants
     const WORLD_BACKGROUND_IMAGE_TOP_Y = 0; // Background image starts at Y=0 in world space
-    const TREE_BASE_OFFSET_FROM_BG_TOP = 850; // Tree base is 850px below the background image's top
+    const TREE_BASE_OFFSET_FROM_BG_TOP = 744; // Tree base is 850px below the background image's top
     const WORLD_TREE_BASE_Y = WORLD_BACKGROUND_IMAGE_TOP_Y + TREE_BASE_OFFSET_FROM_BG_TOP; // Tree's Y coordinate
 
     // Background Image
@@ -144,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         addRoot() {
             // Initial root starts from the base of the trunk
-            const rootStartX = this.x;
+            const rootStartX = this.x - this.width / 2 + Math.random() * this.width;
             const rootStartY = this.y; // Base of the trunk
             const initialLength = 15 + Math.random() * 10;
             const initialThickness = Math.max(2, this.width / 3);
