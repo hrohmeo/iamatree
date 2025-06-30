@@ -2,20 +2,125 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d');
 
-    // Game Configuration
-    const MAX_TREE_HEIGHT = 1000; // Maximum height a tree can reach
+    // --- Tree Configurations ---
+    const defaultTreeConfig = {
+        name: "DefaultTree",
+        maxHeight: 1000,
+        maxWidth: 30, // Maximum width the tree trunk can reach
+        colors: {
+            trunk: 'saddlebrown',
+            leaf: 'green', // Default leaf color for addLeaf on Tree, if branch has no leaves yet.
+            fruit: 'red',
+            root: 'peru',
+        },
+        // Angles in radians. 0 is right, -PI/2 is up, PI/2 is down, PI is left.
+        angles: {
+            // For branches from trunk:
+            // Assuming onLeft: -PI/2 - Math.random() * (PI/2)  => [-PI, -PI/2] (upper-left quadrant)
+            // Assuming onRight: -Math.random() * (PI/2) => [-PI/2, 0] (upper-right quadrant)
+            // We can define a general upward range, e.g., -PI to 0, and let logic pick left/right.
+            branchInitialMin: -Math.PI, // Roughly -180 deg
+            branchInitialMax: 0,          // Roughly 0 deg (straight right)
+                                          // Specific logic in addBranch further refines this to be upward pointing.
 
-    // Constants for branch number calculation based on height
-    const MIN_BRANCHES_AT_MIN_HEIGHT_FOR_BRANCHING = 2;
-    const MAX_BRANCHES_AT_MAX_TREE_HEIGHT = 1000;
-    const BRANCH_SCALING_EXPONENT = 1.5;
+            // For child branches (relative to parent branch angle):
+            // angleVariation = Math.PI / 3; newAngle = parent.angle + (Math.random() * angleVariation * 2 - angleVariation);
+            branchSubsequentVariation: Math.PI / 3, // +/- 60 degrees from parent angle
 
-    const gameRules = {
-        minHeightForBranches: 100,
-        minHeightForFruits: 250,
-        minLeavesForFruits: 50,
-        minBranchesForLeaves: 1, 
+            // For roots from trunk:
+            // baseAngle = Math.PI / 2 (down); angleDeviation = Math.PI / 2.5; initialAngle = baseAngle +/- angleDeviation
+            rootInitialBase: Math.PI / 2,
+            rootInitialVariation: Math.PI / 2.5, // Max 72 degrees deviation from straight down
+
+            // For child roots (relative to parent root angle):
+            // angleVariation = (Math.PI / 2.5) * (Math.random() - 0.5); newAngle = parent.angle + angleVariation
+            rootSubsequentVariation: Math.PI / 2.5, // +/- 36 degrees from parent angle
+        },
+        rules: {
+            minHeightForBranches: 100,
+            minHeightForFruits: 250,
+            minLeavesForFruits: 50,
+            minBranchesForLeaves: 1, // If we decide to use this for anything specific
+        },
+        branchParams: {
+            minBranchesAtMinHeight: 2, // Min branches once minHeightForBranches is reached
+            maxBranchesAtMaxHeight: 1000, // Max branches at tree's maxHeight
+            scalingExponent: 1.5,
+        },
+        fruitSize: { // Example values
+            min: 8,
+            max: 12,
+        },
+        leafSize: { // Example values for leaves added via tree.addLeaf()
+            min: 8, // Base size, can be randomized further in addLeaf
+            max: 15,
+        },
+        // Determines how much the trunk width increases per unit of height increase
+        trunkWidthGrowthFactor: 0.05,
+        // Max number of child branches a single branch can have
+        maxChildBranchesPerBranch: 2,
+        // Min length for a branch to be able to sprout child branches
+        minBranchLengthForSubBranching: 10,
+        // Root branching properties
+        maxChildRootsPerRoot: 2,
+        minRootLengthForSubRooting: 8,
+        // Leaf placement on branch (from 20% to 100% along branch)
+        leafPlacementRange: { min: 0.2, max: 1.0 },
+        // Fruit placement on branch
+        fruitPlacementRange: { min: 0.2, max: 0.8 },
     };
+
+    const willowLikeConfig = {
+        name: "WillowLike",
+        maxHeight: 800,
+        maxWidth: 25,
+        colors: {
+            trunk: '#8B4513', // Darker brown
+            leaf: 'darkolivegreen',
+            fruit: 'lightcoral',
+            root: '#A0522D', // Sienna
+        },
+        angles: {
+            // Willow branches tend to droop more
+            branchInitialMin: -Math.PI * 0.75, // More towards horizontal or slightly down
+            branchInitialMax: -Math.PI * 0.25,
+            branchSubsequentVariation: Math.PI / 2, // Wider variation, allowing more droop
+
+            rootInitialBase: Math.PI / 2,
+            rootInitialVariation: Math.PI / 2, // Wider spread for roots
+            rootSubsequentVariation: Math.PI / 2,
+        },
+        rules: {
+            minHeightForBranches: 80,
+            minHeightForFruits: 200,
+            minLeavesForFruits: 60,
+            minBranchesForLeaves: 1,
+        },
+        branchParams: {
+            minBranchesAtMinHeight: 3,
+            maxBranchesAtMaxHeight: 1200, // Potentially more, thinner branches
+            scalingExponent: 1.6,
+        },
+        fruitSize: {
+            min: 6,
+            max: 10,
+        },
+        leafSize: {
+            min: 10, // Willows often have longer, thinner leaves (simulated by size here)
+            max: 18,
+        },
+        trunkWidthGrowthFactor: 0.04,
+        maxChildBranchesPerBranch: 3, // More branching
+        minBranchLengthForSubBranching: 8,
+        maxChildRootsPerRoot: 3,
+        minRootLengthForSubRooting: 6,
+        leafPlacementRange: { min: 0.1, max: 1.0 },
+        fruitPlacementRange: { min: 0.1, max: 0.9 },
+    };
+
+    // Array of available configurations
+    const availableTreeConfigs = [defaultTreeConfig, willowLikeConfig];
+    let currentConfigIndex = 0; // To cycle through configs when planting new trees
 
     // Game variables
     let score = 0;
@@ -49,13 +154,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Tree class
     class Tree {
-        constructor(x, y, height = 10, width = 5, color = 'saddlebrown', maxWidth = 30) {
+        constructor(x, y, config, height = 10, width = 5) { // Added config parameter
             this.x = x;
             this.y = y; // Base of the trunk
+            this.config = config; // Store the configuration
             this.height = height;
             this.width = width;
-            this.color = color;
-            this.maxWidth = maxWidth; // Maximum width the tree can reach
+            // this.color = color; // Deprecated, use this.config.colors.trunk
+            // this.maxWidth = maxWidth; // Deprecated, use this.config.maxWidth
             this.leaves = []; // To store leaf objects - will be deprecated for direct trunk leaves
             this.roots = [];  // To store root objects
             this.branches = []; // To store branch objects
@@ -65,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         draw() {
              // Draw trunk (tapered)
-            ctx.fillStyle = this.color;
+            ctx.fillStyle = this.config.colors.trunk; // Use config color
             ctx.beginPath();
             ctx.moveTo(this.x - this.width / 2, this.y); // Bottom-left
             ctx.lineTo(this.x + this.width / 2, this.y); // Bottom-right
@@ -90,112 +196,101 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         growHeight(amount = 10) {
-            if (this.height >= MAX_TREE_HEIGHT) {
-                console.log(`Tree has reached its maximum height of ${MAX_TREE_HEIGHT}px.`);
+            if (this.height >= this.config.maxHeight) {
+                console.log(`Tree has reached its maximum height of ${this.config.maxHeight}px.`);
                 return;
             }
 
-            if (this.height + amount > MAX_TREE_HEIGHT) {
-                amount = MAX_TREE_HEIGHT - this.height;
-                console.log(`Adjusted growth amount to reach maximum height of ${MAX_TREE_HEIGHT}px.`);
+            if (this.height + amount > this.config.maxHeight) {
+                amount = this.config.maxHeight - this.height;
+                console.log(`Adjusted growth amount to reach maximum height of ${this.config.maxHeight}px.`);
             }
 
             this.height += amount;
             console.log(`Tree height increased to: ${this.height}`);
 
-            // Grow width proportionally to height, up to maxWidth
-            // The growth factor for width can be adjusted (e.g., 0.05 means width increases by 5% of height increase)
-            const widthIncreaseFactor = 0.05; // Adjust this factor as needed for desired growth rate
+            const widthIncreaseFactor = this.config.trunkWidthGrowthFactor;
             const potentialWidthIncrease = amount * widthIncreaseFactor;
 
-            if (this.width < this.maxWidth) {
+            if (this.width < this.config.maxWidth) {
                 this.width += potentialWidthIncrease;
-                if (this.width > this.maxWidth) {
-                    this.width = this.maxWidth;
+                if (this.width > this.config.maxWidth) {
+                    this.width = this.config.maxWidth;
                 }
                 console.log(`Tree width increased to: ${this.width}`);
             }
 
-            updateScore(); // Score might depend on height and width
+            updateScore();
         }
 
-        // This method might still be useful for direct width manipulation if needed elsewhere,
-        // or can be removed if all width growth is handled by growHeight.
-        // For now, let's keep it but ensure it also respects maxWidth.
-        growWidth(amount = 2) {
-            if (this.width < this.maxWidth) {
+        growWidth(amount = 2) { // Retained for potential direct use, though growHeight handles proportional width.
+            if (this.width < this.config.maxWidth) {
                 this.width += amount;
-                if (this.width > this.maxWidth) {
-                    this.width = this.maxWidth;
+                if (this.width > this.config.maxWidth) {
+                    this.width = this.config.maxWidth;
                 }
                 console.log(`Tree width increased to: ${this.width}`);
-                updateScore(); // Score might depend on width/volume
+                updateScore();
             } else {
-                console.log(`Tree width already at maximum: ${this.maxWidth}`);
+                console.log(`Tree width already at maximum: ${this.config.maxWidth}`);
             }
         }
 
-        addLeaf(size = 10, color = 'green') {
-            const allBranches = this.getAllBranches(); // Get all branches, including children
+        addLeaf(size, color) { // Parameters will be passed from button click / specific logic
+            const allBranches = this.getAllBranches();
             if (allBranches.length > 0) {
-                // Add leaf to a random branch from the entire hierarchy
                 const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
-                randomBranch.addLeaf(size, color);
+                // Use config for default leaf size and color if not provided
+                const leafSize = size !== undefined ? size : (this.config.leafSize.min + Math.random() * (this.config.leafSize.max - this.config.leafSize.min));
+                const leafColor = color !== undefined ? color : this.config.colors.leaf;
+                randomBranch.addLeaf(leafSize, leafColor);
             } else {
-                // Leaves can only be added if branches exist.
                 console.log('Cannot add leaf: Tree has no branches.');
-                // Optionally, provide user feedback here if a UI notification system exists.
             }
         }
 
         addRoot() {
-            // Initial root starts from the base of the trunk
             const rootStartX = this.x - (this.width / 2) + (Math.random() * this.width);
-            const rootStartY = this.y; // Base of the trunk
+            const rootStartY = this.y;
 
-            // Length and thickness based on tree properties
-            const initialLength = (this.height / 15) + Math.random() * 10 + 10; // Adjusted for more substantial initial roots
-            const initialThickness = Math.max(2, this.width / 4); // Proportional to trunk width
+            const initialLength = (this.height / 15) + Math.random() * 10 + 10;
+            const initialThickness = Math.max(2, this.width / 4);
 
-            // Initial angle: strictly downwards (PI/4 to 3PI/4)
-            // Math.PI / 2 is straight down. Variation is Math.PI / 4 on either side.
-            const baseAngle = Math.PI / 2;
-            const angleDeviation = Math.PI / 2.5; // Max 45 degrees deviation from straight down
+            const baseAngle = this.config.angles.rootInitialBase;
+            const angleDeviation = this.config.angles.rootInitialVariation;
             const initialAngle = baseAngle + (Math.random() * angleDeviation * 2 - angleDeviation);
 
-            const newRoot = new Root(this, rootStartX, rootStartY, initialLength, initialAngle, initialThickness, this.color);
+            // Pass this.config.colors.root for the root color
+            const newRoot = new Root(this, rootStartX, rootStartY, initialLength, initialAngle, initialThickness, this.config.colors.root);
             this.roots.push(newRoot);
             console.log(`Primary root added. Angle: ${initialAngle.toFixed(2)}`);
 
-            // Automatically try to add child roots to the new primary root
-            // This creates a more developed root system from a single "addRoot" action
-            const initialBranchingAttempts = 1 + Math.floor(Math.random() * 2); // Attempt to branch 1 or 2 times
+            const initialBranchingAttempts = 1 + Math.floor(Math.random() * 2);
             for (let i = 0; i < initialBranchingAttempts; i++) {
-                if (newRoot.length > 10 && newRoot.childRoots.length < 3) { // Check if the new root is substantial enough
+                if (newRoot.length > this.config.minRootLengthForSubRooting && newRoot.childRoots.length < this.config.maxChildRootsPerRoot) {
                     newRoot.addChildRoot();
                 }
             }
-            // Second layer of branching for more spread, if the first child roots were successful
             if (newRoot.childRoots.length > 0) {
                 newRoot.childRoots.forEach(childRoot => {
-                    if (Math.random() < 0.5 && childRoot.length > 10 && childRoot.childRoots.length < 2) {
+                    if (Math.random() < 0.5 && childRoot.length > this.config.minRootLengthForSubRooting && childRoot.childRoots.length < this.config.maxChildRootsPerRoot) {
                         childRoot.addChildRoot();
                     }
                 });
             }
         }
 
-        produceFruit(count = 1) { // Add count parameter with default value
+        produceFruit(count = 1) {
             let producedCount = 0;
             const totalLeaves = this.getTotalLeaves();
 
-            if (this.height < gameRules.minHeightForFruits) {
-                console.log(`Tree is not tall enough to produce fruit. Min height: ${gameRules.minHeightForFruits}, current: ${this.height}`);
+            if (this.height < this.config.rules.minHeightForFruits) {
+                console.log(`Tree is not tall enough to produce fruit. Min height: ${this.config.rules.minHeightForFruits}, current: ${this.height}`);
                 return;
             }
 
-            if (totalLeaves < gameRules.minLeavesForFruits) {
-                console.log(`Tree does not have enough leaves to produce fruit. Min leaves: ${gameRules.minLeavesForFruits}, current: ${totalLeaves}`);
+            if (totalLeaves < this.config.rules.minLeavesForFruits) {
+                console.log(`Tree does not have enough leaves to produce fruit. Min leaves: ${this.config.rules.minLeavesForFruits}, current: ${totalLeaves}`);
                 return;
             }
 
@@ -206,148 +301,100 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             for (let i = 0; i < count; i++) {
-                // Select a random branch that has leaves
                 const randomBranchWithLeaves = branchesWithLeaves[Math.floor(Math.random() * branchesWithLeaves.length)];
 
-                // Select a random leaf on that branch to determine the fruit's position
-                // Or, for simplicity, place it near the end of the branch or a random position on the branch
-                // Similar to how leaves are placed. Let's adapt the leaf placement logic.
+                const placementMin = this.config.fruitPlacementRange.min;
+                const placementMax = this.config.fruitPlacementRange.max;
+                const positionOnBranch = placementMin + Math.random() * (placementMax - placementMin);
 
-                const positionOnBranch = 0.2 + Math.random() * 0.8; // From 20% to 100% along the branch
                 const fruitBaseX = randomBranchWithLeaves.startX + Math.cos(randomBranchWithLeaves.angle) * randomBranchWithLeaves.length * positionOnBranch;
                 const fruitBaseY = randomBranchWithLeaves.startY + Math.sin(randomBranchWithLeaves.angle) * randomBranchWithLeaves.length * positionOnBranch;
 
-                const fruitSize = 8 + Math.random() * 4; // Fruit size, slightly smaller than average leaves
+                const fruitSizeVal = this.config.fruitSize.min + Math.random() * (this.config.fruitSize.max - this.config.fruitSize.min);
 
-                // Offset fruit slightly like leaves so they don't all sit directly on the branch line
-                const perpendicularOffset = (Math.random() - 0.5) * fruitSize * 2;
+                const perpendicularOffset = (Math.random() - 0.5) * fruitSizeVal * 2;
                 const fruitX = fruitBaseX + Math.sin(randomBranchWithLeaves.angle) * perpendicularOffset;
                 const fruitY = fruitBaseY - Math.cos(randomBranchWithLeaves.angle) * perpendicularOffset;
 
-                this.fruitObjects.push(new Fruit(fruitX, fruitY, fruitSize, 'red'));
-                this.fruits++; // Keep this counter for now, for score and possibly other logic.
+                this.fruitObjects.push(new Fruit(fruitX, fruitY, fruitSizeVal, this.config.colors.fruit));
+                this.fruits++;
                 producedCount++;
             }
 
             if (producedCount > 0) {
                 console.log(`${producedCount} fruit(s) produced. Total fruit objects: ${this.fruitObjects.length}`);
-                updateScore(); // Score depends on fruits
+                updateScore();
             }
         }
 
         getScore() {
-            // Basic score: height + volume (width as proxy) + fruits
-            const volumeScore = this.width * this.height / 10; // Example volume calculation
-            // Using this.fruitObjects.length for score directly related to visible fruits.
+            const volumeScore = this.width * this.height / 10;
             return Math.round(this.height + volumeScore + (this.fruitObjects.length * 5));
         }
 
         addBranch() {
-            const maxAllowed = calculateMaxAllowedBranches(
+            const maxAllowed = calculateMaxAllowedBranches( // This function will be updated in a later step
                 this.height,
-                gameRules.minHeightForBranches,
-                MAX_TREE_HEIGHT,
-                MIN_BRANCHES_AT_MIN_HEIGHT_FOR_BRANCHING,
-                MAX_BRANCHES_AT_MAX_TREE_HEIGHT,
-                BRANCH_SCALING_EXPONENT
+                this.config.rules.minHeightForBranches,
+                this.config.maxHeight,
+                this.config.branchParams.minBranchesAtMinHeight,
+                this.config.branchParams.maxBranchesAtMaxHeight,
+                this.config.branchParams.scalingExponent
             );
 
             if (this.getAllBranches().length >= maxAllowed) {
-                console.log(`Cannot add trunk branch: maximum ${maxAllowed} branches for current height ${this.height} reached. Current branches: ${this.getAllBranches().length}`);
+                console.log(`Cannot add trunk branch: maximum ${maxAllowed} branches for current height ${this.height} reached.`);
                 return;
             }
 
-            if (this.height < gameRules.minHeightForBranches) {
-                console.log(`Tree is too short for branches. Min height: ${gameRules.minHeightForBranches}, current: ${this.height}`);
+            if (this.height < this.config.rules.minHeightForBranches) {
+                console.log(`Tree is too short for branches. Min height: ${this.config.rules.minHeightForBranches}, current: ${this.height}`);
                 return;
             }
 
-            // Determine the segment of the trunk eligible for branches
-            // It's the part of the trunk above gameRules.minHeightForBranches
-            const eligibleTrunkHeight = this.height - gameRules.minHeightForBranches;
-            if (eligibleTrunkHeight <= 0) { // Should be caught by the check above, but as a safeguard
+            const eligibleTrunkHeight = this.height - this.config.rules.minHeightForBranches;
+            if (eligibleTrunkHeight <= 0) {
                 console.log("Not enough eligible trunk height for branches.");
                 return;
             }
 
-            // Branches should start on the upper part of this eligible segment.
-            // Let's say, from the very top of the eligible segment down to 80% of its length.
-            // So, randomProportion determines how far down from the top of the *eligible* segment the branch starts.
-            const randomProportionInEligible = Math.random() * 0.8; // Branch starts in the top 80% of the eligible segment
-
-            // branchStartY is calculated from the ground (this.y).
-            // Top of the tree is at this.y - this.height.
-            // Top of the eligible segment is at this.y - this.height.
-            // Bottom of the eligible segment is at this.y - gameRules.minHeightForBranches.
+            const randomProportionInEligible = Math.random() * 0.8;
             const branchStartY = (this.y - this.height) + (eligibleTrunkHeight * randomProportionInEligible);
-
-
-            // Start branch from the horizontal center of the trunk
             const branchStartX = this.x;
 
-            // Angle: 0 radians is to the right.
-            // Since branches now originate from the center, the angle needs to ensure they point outwards.
-            // The previous angle logic was fine, as it determined direction irrespective of exact start X.
             const onLeft = Math.random() < 0.5;
-            // Branches pointing slightly up or down from horizontal, BUT NOT DOWNWARDS for trunk branches.
-            // Angle: 0 radians is to the right. PI (180 deg) is to the left. PI/2 (90 deg) is straight up.
             let angle;
+            // Reverted to original symmetrical angle logic to fix bug
             if (onLeft) {
-                // Corrected: Left side, visuell oben links [-PI, -PI/2]
-                // -PI (links) bis -PI/2 (oben)
+                // Angles for left side: upper-left quadrant [-PI, -PI/2]
+                // -PI (straight left) to -PI/2 (straight up)
                 angle = -Math.PI / 2 - Math.random() * (Math.PI / 2);
             } else {
-                // Corrected: Right side, visuell oben rechts [-PI/2, 0]
-                // -PI/2 (oben) bis 0 (rechts)
+                // Angles for right side: upper-right quadrant [-PI/2, 0]
+                // -PI/2 (straight up) to 0 (straight right)
                 angle = -Math.random() * (Math.PI / 2);
             }
+            // The config angles (this.config.angles.branchInitialMin/Max) are currently not used by this reverted logic.
+            // A future step could refine this to use them while maintaining symmetry if desired.
 
-            // Calculate scale factor based on vertical position
-            // eligibleTrunkHeight is the segment of the trunk where branches can grow
-            const eligibleTrunkHeightForScaling = this.height - gameRules.minHeightForBranches;
-            let scaleFactor = 1.0; // Default scale
+            const eligibleTrunkHeightForScaling = this.height - this.config.rules.minHeightForBranches;
+            let scaleFactor = 1.0;
 
             if (eligibleTrunkHeightForScaling > 0) {
-                // heightFromTrunkTop is how far down from the top of the eligible segment the branch is.
-                // branchStartY is measured from canvas origin (top-left).
-                // Top of the tree is this.y - this.height.
-                // Lowest point for branch is this.y - gameRules.minHeightForBranches
-                // Highest point for branch is this.y - this.height (top of the trunk)
-                
-                // proportionFromTop: 0 means at the very top of eligible segment, 1 means at the very bottom.
-                // branchStartY is already calculated based on randomProportionInEligible,
-                // where randomProportionInEligible = 0 means top of eligible segment.
-                // So, randomProportionInEligible itself can serve as proportionFromTop.
-                // The existing randomProportionInEligible is Math.random() * 0.8, so it's 0 to 0.8.
-                // Let's use the distance from the actual top of the tree.
-                // Top of tree: this.y - this.height
-                // Bottom of branchable area: this.y - MIN_TRUNK_HEIGHT_FOR_BRANCHES
-                
-                // Distance of branch start from the absolute top of the tree
                 const distanceFromTreeTop = branchStartY - (this.y - this.height);
-                
-                // Normalize this distance over the total branchable height
-                // If eligibleTrunkHeightForScaling is 0, this would be a problem, but we checked.
-                let normalizedPosition = distanceFromTreeTop / eligibleTrunkHeightForScaling; // 0 = top, 1 = bottom
-
-                // We want smaller branches at the top (normalizedPosition close to 0).
-                // So, scaleFactor should be smaller when normalizedPosition is smaller.
-                const minScale = 0.5; // Branches at the top are 50% of standard size
-                const maxScale = 1.0; // Branches at the bottom are 100% of standard size
+                let normalizedPosition = distanceFromTreeTop / eligibleTrunkHeightForScaling;
+                const minScale = 0.5;
+                const maxScale = 1.0;
                 scaleFactor = minScale + (maxScale - minScale) * normalizedPosition;
-                
-                // Clamp scaleFactor to be between minScale and maxScale, just in case.
                 scaleFactor = Math.max(minScale, Math.min(maxScale, scaleFactor));
             }
 
-
             const baseLength = (this.height / 5) + Math.random() * (this.height / 4);
             const baseThickness = Math.max(1, this.width / 4);
-
             const length = baseLength * scaleFactor;
-            const thickness = Math.max(1, baseThickness * scaleFactor); // Ensure thickness is at least 1
+            const thickness = Math.max(1, baseThickness * scaleFactor);
 
-            this.branches.push(new Branch(this, branchStartX, branchStartY, length, angle, thickness, this.color));
+            this.branches.push(new Branch(this, branchStartX, branchStartY, length, angle, thickness, this.config.colors.trunk));
             console.log('Branch added');
         }
 
@@ -380,15 +427,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     class Branch {
         constructor(parentTree, startX, startY, length, angle, thickness, color) {
-            this.parentTree = parentTree; // Keep a reference if needed, e.g. for color
+            this.parentTree = parentTree;
             this.startX = startX;
             this.startY = startY;
             this.length = length;
-            this.angle = angle; // Angle in radians
+            this.angle = angle;
             this.thickness = thickness;
-            this.color = color; // Inherit color from parent tree or specify
+            this.color = color;
             this.leaves = [];
-            this.childBranches = []; // New: List for child branches
+            this.childBranches = [];
             this.endX = this.startX + Math.cos(this.angle) * this.length;
             this.endY = this.startY + Math.sin(this.angle) * this.length;
         }
@@ -400,66 +447,58 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.lineWidth = this.thickness;
             ctx.strokeStyle = this.color;
             ctx.stroke();
-
-            // Recursively draw child branches
             this.childBranches.forEach(child => child.drawBranchItself());
         }
 
         drawBranchLeaves() {
             this.leaves.forEach(leaf => leaf.draw());
-            // Recursively draw leaves of child branches
             this.childBranches.forEach(child => child.drawBranchLeaves());
         }
 
         addChildBranch() {
             const maxAllowedOnTree = calculateMaxAllowedBranches(
                 this.parentTree.height,
-                gameRules.minHeightForBranches,
-                MAX_TREE_HEIGHT,
-                MIN_BRANCHES_AT_MIN_HEIGHT_FOR_BRANCHING,
-                MAX_BRANCHES_AT_MAX_TREE_HEIGHT,
-                BRANCH_SCALING_EXPONENT
+                this.parentTree.config.rules.minHeightForBranches,
+                this.parentTree.config.maxHeight,
+                this.parentTree.config.branchParams.minBranchesAtMinHeight,
+                this.parentTree.config.branchParams.maxBranchesAtMaxHeight,
+                this.parentTree.config.branchParams.scalingExponent
             );
 
             if (this.parentTree.getAllBranches().length >= maxAllowedOnTree) {
-                console.log(`Cannot add child branch: maximum ${maxAllowedOnTree} branches for current tree height ${this.parentTree.height} reached. Current branches on tree: ${this.parentTree.getAllBranches().length}`);
+                console.log(`Cannot add child branch: maximum ${maxAllowedOnTree} branches for current tree height ${this.parentTree.height} reached.`);
                 return;
             }
 
-            if (this.length < 10 || this.childBranches.length > 2) { // Don't branch if too short or too many children
+            if (this.length < this.parentTree.config.minBranchLengthForSubBranching || this.childBranches.length >= this.parentTree.config.maxChildBranchesPerBranch) {
                 console.log("Branch is too short or already has enough child branches.");
                 return;
             }
 
-            const newLength = this.length * (0.5 + Math.random() * 0.3); // 50-80% of parent length
-            const newThickness = Math.max(1, this.thickness * 0.7); // 70% of parent thickness
+            const newLength = this.length * (0.5 + Math.random() * 0.3);
+            const newThickness = Math.max(1, this.thickness * 0.7);
 
-            // Angle relative to parent branch, can go downwards
-            // e.g. parentAngle +/- 60 degrees (PI/3)
-            const angleVariation = Math.PI / 3;
+            const angleVariation = this.parentTree.config.angles.branchSubsequentVariation;
             const newAngle = this.angle + (Math.random() * angleVariation * 2 - angleVariation);
 
-            // New branch starts at the end of the parent branch
             const newBranch = new Branch(this.parentTree, this.endX, this.endY, newLength, newAngle, newThickness, this.color);
             this.childBranches.push(newBranch);
             console.log("Child branch added.");
         }
 
-        // Method to add leaves specifically to this branch
         addLeaf(size = 8, color = 'limegreen') {
-            // Add leaves along the branch, not just at the end
-            const positionOnBranch = 0.2 + Math.random() * 0.8; // From 20% to 100% along the branch
+            const placementMin = this.parentTree.config.leafPlacementRange.min;
+            const placementMax = this.parentTree.config.leafPlacementRange.max;
+            const positionOnBranch = placementMin + Math.random() * (placementMax - placementMin);
 
-            // Base leaf position on the branch line
             const leafBaseX = this.startX + Math.cos(this.angle) * this.length * positionOnBranch;
             const leafBaseY = this.startY + Math.sin(this.angle) * this.length * positionOnBranch;
 
-            // Add some offset perpendicular to the branch angle to simulate leaves sprouting off
-            const perpendicularOffset = (Math.random() - 0.5) * size * 3; // Random offset distance
+            const perpendicularOffset = (Math.random() - 0.5) * size * 3;
             const leafX = leafBaseX + Math.sin(this.angle) * perpendicularOffset;
             const leafY = leafBaseY - Math.cos(this.angle) * perpendicularOffset;
 
-            this.leaves.push(new Leaf(leafX, leafY, size, color));
+            this.leaves.push(new Leaf(leafX, leafY, size, color)); // Color is passed in
             console.log('Leaf added to branch');
         }
     }
@@ -482,21 +521,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     class Root {
         constructor(parentTree, startX, startY, length, angle, thickness, color = 'peru') {
-            this.parentTree = parentTree; // Reference to the tree, similar to Branch
+            this.parentTree = parentTree;
             this.startX = startX;
             this.startY = startY;
             this.length = length;
-            this.angle = angle; // Angle in radians (0 is right, PI/2 is down)
-            this.thickness = Math.max(1, thickness); // Ensure thickness is at least 1
-            this.color = parentTree ? parentTree.color : color; // Inherit color or use default
+            this.angle = angle;
+            this.thickness = Math.max(1, thickness);
+            this.color = color; // Use the passed color (from tree.config.colors.root)
             this.childRoots = [];
 
             this.endX = this.startX + Math.cos(this.angle) * this.length;
             this.endY = this.startY + Math.sin(this.angle) * this.length;
-
-            // Automatic branching logic will be moved to a separate method, e.g., addChildRoot
-            // and called from Tree.addRoot or explicitly by a game action.
-            // For now, the constructor just creates the root segment.
         }
 
         draw() {
@@ -504,124 +539,78 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.moveTo(this.startX, this.startY);
             ctx.lineTo(this.endX, this.endY);
             ctx.lineWidth = this.thickness;
-            // Use the root's own color, which might be different from the trunk if desired.
-            // For now, let's use a distinct root color.
-            ctx.strokeStyle = 'peru'; // Or this.color if we want to allow varied root colors
+            ctx.strokeStyle = this.color;
             ctx.stroke();
 
             this.childRoots.forEach(child => child.draw());
         }
 
-        // This method will be adapted from the old tryBranch and current Branch.addChildBranch
         addChildRoot() {
-            // Basic conditions to prevent overly dense or tiny roots
-            if (this.length < 8 || this.childRoots.length > 2) { // Max 2 child roots per segment, min length 8
-                // console.log("Root segment is too short or already has enough child roots.");
+            if (this.length < this.parentTree.config.minRootLengthForSubRooting || this.childRoots.length >= this.parentTree.config.maxChildRootsPerRoot) {
                 return;
             }
 
-            const newLength = this.length * (0.5 + Math.random() * 0.4); // 50-90% of parent length
-            const newThickness = Math.max(1, this.thickness * 0.8); // 80% of parent thickness, min 1
+            const newLength = this.length * (0.5 + Math.random() * 0.4);
+            const newThickness = Math.max(1, this.thickness * 0.8);
 
             let newAngle;
             let attempts = 0;
-            const maxAttempts = 10; // Prevent infinite loop if angle generation is stuck
+            const maxAttempts = 10;
 
             do {
-                // Angle relative to parent branch, can go downwards or sideways
-                // Max deviation of, say, 60 degrees (PI/3) from parent's angle initially
-                const angleVariation = (Math.PI / 2.5) * (Math.random() - 0.5); // Varies by +/- 36 degrees from parent
+                const angleVariation = (this.parentTree.config.angles.rootSubsequentVariation / 2) * (Math.random() - 0.5) * 2; // Use config
                 newAngle = this.angle + angleVariation;
+                newAngle = (newAngle + Math.PI * 3) % (Math.PI * 2) - Math.PI;
 
-                // Normalize angle to the range [-PI, PI] for consistent checks
-                // (angle + PI) % (2 * PI) - PI normalizes to [-PI, PI]
-                newAngle = (newAngle + Math.PI * 3) % (Math.PI * 2) - Math.PI; // Ensure positive before modulo, then shift
-
-                // Constraint: Child roots can grow in any direction except sharply upwards.
-                // "Sharply upwards" means not more than 45 degrees from horizontal, towards the sky.
-                // Sky is generally angles from 0 (exclusive) to -PI (exclusive).
-                // -PI/2 is straight up.
-                // Forbidden zone: angles between -PI/4 (i.e., -45 deg) and -3*PI/4 (i.e., -135 deg).
-                // This is an upward cone of 90 degrees, centered on straight up.
-                const forbiddenMin = - (3 * Math.PI / 4); // -135 degrees
-                const forbiddenMax = - (Math.PI / 4);     // -45 degrees
+                const forbiddenMin = - (3 * Math.PI / 4);
+                const forbiddenMax = - (Math.PI / 4);
 
                 if (newAngle > forbiddenMin && newAngle < forbiddenMax) {
-                    // Angle is in the forbidden "sharply upward" zone.
-                    // Adjust it to be more horizontal or downward.
-                    // Example: if it's pointing up-left, nudge it to left-horizontal or more down.
-                    // if it's pointing up-right, nudge to right-horizontal or more down.
-                    if (newAngle < -Math.PI / 2) { // Between -135 and -90 (up-left quadrant)
-                        // Push towards left horizontal (-PI) or downwards (PI/2)
-                        newAngle = -Math.PI + (Math.random() * Math.PI / 4); // Bias towards left horizontal
-                    } else { // Between -90 and -45 (up-right quadrant)
-                        // Push towards right horizontal (0) or downwards (PI/2)
-                        newAngle = 0 - (Math.random() * Math.PI / 4); // Bias towards right horizontal
+                    if (newAngle < -Math.PI / 2) {
+                        newAngle = -Math.PI + (Math.random() * Math.PI / 4);
+                    } else {
+                        newAngle = 0 - (Math.random() * Math.PI / 4);
                     }
-                    // console.log(`Adjusted angle from forbidden zone to ${newAngle.toFixed(2)}`);
                 }
                 attempts++;
             } while ((newAngle > (-3 * Math.PI / 4) && newAngle < (-Math.PI / 4)) && attempts < maxAttempts);
 
             if (attempts >= maxAttempts) {
-                // console.log("Could not find a suitable angle for child root after max attempts.");
                 return;
             }
 
-            // Calculate prospective end Y
             let prospectiveEndY = this.endY + Math.sin(newAngle) * newLength;
 
-            // Constraint: Roots should not go above the tree's starting point (this.parentTree.y)
             if (prospectiveEndY < this.parentTree.y) {
-                // If the root is trying to grow above the tree base,
-                // try to adjust angle to be horizontal or slightly downwards.
-                // If this.endY is already at parentTree.y, it can only go horizontal or down.
-
-                // If endY is very close to or above parentTree.y, only allow horizontal or downward angles.
-                if (this.endY <= this.parentTree.y + 2) { // Small tolerance
-                    if (newAngle < 0 && newAngle > -Math.PI) { // If angle is generally upwards
-                        // Try to make it horizontal.
-                        // Determine if it was going left or right.
-                        if (newAngle > -Math.PI / 2) { // Up-right quadrant
-                            newAngle = 0; // Go right
-                        } else { // Up-left quadrant
-                            newAngle = Math.PI; // Go left
+                if (this.endY <= this.parentTree.y + 2) {
+                    if (newAngle < 0 && newAngle > -Math.PI) {
+                        if (newAngle > -Math.PI / 2) {
+                            newAngle = 0;
+                        } else {
+                            newAngle = Math.PI;
                         }
-                        // Recalculate prospectiveEndY with the new horizontal angle
                         prospectiveEndY = this.endY + Math.sin(newAngle) * newLength;
-                        // If it's still above (e.g. due to floating point issues or if sin(0) or sin(PI) isn't exactly 0 for the engine)
-                        // or if the startY itself was already slightly above, then just don't create this root.
                         if (prospectiveEndY < this.parentTree.y) {
-                             // console.log(`Child root aborted: Adjusted horizontal angle still results in growth above tree base. StartY: ${this.endY}, TreeBase: ${this.parentTree.y}`);
                             return;
                         }
                     }
                 } else {
-                    // If it's further below, but still trying to go up too high,
-                    // simply disallow this specific branch.
-                    // console.log(`Child root aborted: ProspectiveEndY ${prospectiveEndY} is above tree base ${this.parentTree.y}.`);
                     return;
                 }
             }
 
-            // Check if the new root would go beyond the canvas bottom significantly
-            if (prospectiveEndY > canvas.height - 2) { // 2px buffer from bottom
-                // console.log(`Child root prospective EndY ${prospectiveEndY} is off canvas. Aborting.`);
+            if (prospectiveEndY > canvas.height - 2) {
                 return;
             }
 
-            if (newLength < 2) { // Minimum length for a root segment
-                // console.log("Child root new length is too small. Aborting.");
+            if (newLength < 2) {
                 return;
             }
 
             const newRoot = new Root(this.parentTree, this.endX, this.endY, newLength, newAngle, newThickness, this.color);
             this.childRoots.push(newRoot);
-            // console.log(`Child root added. Angle: ${newAngle.toFixed(2)}`);
 
-            // Chance for the new child root to also try and branch further
-            // Reduced probability and check childBranches.length to avoid too dense structures quickly.
-            if (Math.random() < 0.4 && newRoot.childRoots.length < 2 && newRoot.length > 5) {
+            if (Math.random() < 0.4 && newRoot.childRoots.length < this.parentTree.config.maxChildRootsPerRoot && newRoot.length > this.parentTree.config.minRootLengthForSubRooting) {
                 newRoot.addChildRoot();
             }
         }
@@ -636,14 +625,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const produceFruitButton = document.getElementById('produce-fruit-button');
     const plantNewTreeButton = document.getElementById('plant-new-tree-button');
     const scoreDisplay = document.getElementById('current-score');
-    // const zoomInButton = document.getElementById('zoom-in-button'); // Removed
-    // const zoomOutButton = document.getElementById('zoom-out-button'); // Removed
-
     // Input fields
     const growHeightInput = document.getElementById('grow-height-input');
     const growRootsInput = document.getElementById('grow-roots-input');
 
     // Utility function to calculate maximum allowed branches based on tree height
+    // This function now uses parameters passed to it, which come from the tree's config.
     function calculateMaxAllowedBranches(height, minHeightForBranches, maxHeight, minBranches, maxBranches, exponent) {
         if (height < minHeightForBranches) {
             return 0;
@@ -656,7 +643,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalEffectiveHeightRange = maxHeight - minHeightForBranches;
 
         if (totalEffectiveHeightRange <= 0) {
-            // This case implies minHeightForBranches >= maxHeight, so effectively only minBranches apply if height condition met.
             return minBranches;
         }
 
@@ -671,8 +657,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const produceFruitInput = document.getElementById('produce-fruit-input');
 
     // Game Setup
-    // const GROUND_LEVEL_OFFSET = 210; // This is effectively replaced by WORLD_TREE_BASE_Y logic
-
     function initializeGame() {
         resizeCanvas(); // Call resizeCanvas first to set correct canvas dimensions
 
@@ -680,7 +664,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (trees.length === 0) {
             const initialTreeX = canvas.width / 2; // X can still be canvas-relative for initial placement
             const initialTreeY = WORLD_TREE_BASE_Y; // Use the new world coordinate
-            trees.push(new Tree(initialTreeX, initialTreeY));
+            // Use the first configuration from the availableTreeConfigs array
+            trees.push(new Tree(initialTreeX, initialTreeY, availableTreeConfigs[0]));
+            currentConfigIndex = 0; // Reset index for subsequent plantings
         }
         updateButtonStates(); // Centralized button state management
         gameLoop();
@@ -710,30 +696,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentTree = trees[0]; // Assuming operations are on the first tree
 
         // Grow Height button
-        growHeightButton.disabled = currentTree.height >= MAX_TREE_HEIGHT;
+        growHeightButton.disabled = currentTree.height >= currentTree.config.maxHeight;
 
         // Add Branch button
         const maxAllowedBranches = calculateMaxAllowedBranches(
             currentTree.height,
-            gameRules.minHeightForBranches,
-            MAX_TREE_HEIGHT,
-            MIN_BRANCHES_AT_MIN_HEIGHT_FOR_BRANCHING,
-            MAX_BRANCHES_AT_MAX_TREE_HEIGHT,
-            BRANCH_SCALING_EXPONENT
+            currentTree.config.rules.minHeightForBranches,
+            currentTree.config.maxHeight,
+            currentTree.config.branchParams.minBranchesAtMinHeight,
+            currentTree.config.branchParams.maxBranchesAtMaxHeight,
+            currentTree.config.branchParams.scalingExponent
         );
         const currentBranches = currentTree.getAllBranches().length;
-        addBranchButton.disabled = currentTree.height < gameRules.minHeightForBranches || currentBranches >= maxAllowedBranches;
+        addBranchButton.disabled = currentTree.height < currentTree.config.rules.minHeightForBranches || currentBranches >= maxAllowedBranches;
 
         // Grow Leaves button
-        // Enabled if there's at least one branch.
         growLeavesButton.disabled = currentTree.getAllBranches().length === 0;
 
         // Produce fruit button
-        const canProduceFruit = currentTree.height >= gameRules.minHeightForFruits &&
-            currentTree.getTotalLeaves() >= gameRules.minLeavesForFruits;                    
+        const canProduceFruit = currentTree.height >= currentTree.config.rules.minHeightForFruits &&
+            currentTree.getTotalLeaves() >= currentTree.config.rules.minLeavesForFruits;
         produceFruitButton.disabled = !canProduceFruit;
 		
-
         // Plant new tree button
         if (trees.some(tree => tree.fruitObjects.length > 0)) {
             plantNewTreeButton.disabled = false;
@@ -914,18 +898,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const newX = Math.random() * (canvas.width - 60) + 30; // Random X, away from edges
             const newY = WORLD_TREE_BASE_Y; // Base of the trunk using the world coordinate
 
-            // TODO: Later, allow choosing tree type
-            const newTree = new Tree(newX, newY);
+            // Cycle to the next configuration for the new tree
+            currentConfigIndex = (currentConfigIndex + 1) % availableTreeConfigs.length;
+            const selectedConfig = availableTreeConfigs[currentConfigIndex];
+
+            const newTree = new Tree(newX, newY, selectedConfig);
             trees.push(newTree);
 
-            console.log('New tree planted.');
+            console.log(`New tree planted with config: ${selectedConfig.name}`);
             updateScore(); // This will also call updateButtonStates
-
-            // No need to manually disable plantNewTreeButton here,
-            // updateScore() -> updateButtonStates() will handle it.
         } else {
             console.log('No tree has fruit to plant a new one.');
-            // updateButtonStates() called via updateScore() will ensure the button is disabled if necessary
         }
     });
 
@@ -936,7 +919,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (let i = 0; i < count; i++) {
             // Decide whether to add a branch to the trunk or to an existing branch
-            if (currentTree.branches.length === 0 || Math.random() < 0.4 || currentTree.height < gameRules.minHeightForBranches + 20) {
+            // Use config for minHeightForBranches check
+            if (currentTree.branches.length === 0 || Math.random() < 0.4 || currentTree.height < currentTree.config.rules.minHeightForBranches + 20) {
                 // Add to trunk if no branches yet, or 40% chance, or if tree is not much taller than min height for branches
                 currentTree.addBranch();
             } else {
