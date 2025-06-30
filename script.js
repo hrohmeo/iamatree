@@ -535,7 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create the first tree
         if (trees.length === 0) {
             const initialTreeX = canvas.width / 2;
-            const initialTreeY = 830; // Fixed position from the top
+            const initialTreeY = canvas.height - GROUND_LEVEL_OFFSET;
             trees.push(new Tree(initialTreeX, initialTreeY));
         }
         updateButtonStates(); // Centralized button state management
@@ -630,78 +630,71 @@ document.addEventListener('DOMContentLoaded', () => {
             const viewHeight = canvas.height / zoomLevel;
 
             // --- 1. Draw Background Colors ---
-            // Sky color - fills the entire view first.
+            // Top color (#4ab2e9)
             ctx.fillStyle = '#4ab2e9';
             ctx.fillRect(viewX, viewY, viewWidth, viewHeight);
 
-            // --- 2. Draw Background Image (Horizontally Tiled, Fixed at View Top) ---
-            // The image's top edge will align with viewY. It tiles horizontally.
-            const imageActualY = viewY; // Image top is at the top of the viewport
-            const startX = Math.floor(viewX / imgWidth) * imgWidth; // Horizontal tiling start
+            // --- 2. Draw Tiled Background Image ---
+            // The image should be placed towards the "bottom" of the sky.
+            // Let's assume the image's bottom edge aligns with where the "ground color" begins.
+            // For now, let ground color start where tree roots typically are, or slightly above.
+            // The groundY for drawing the actual ground line is: canvas.height - GROUND_LEVEL_OFFSET + 2
+            // This groundY is in screen coordinates before zoom/pan.
+            // We need to define a "horizon" or "image bottom" in world coordinates.
+            // Let's place the bottom of the image at a Y coordinate that corresponds to the visual ground.
+            // The ground line is drawn at `canvas.height - GROUND_LEVEL_OFFSET + 2` (screen space)
+            // World Y for image bottom:
+            const imageBottomY = (canvas.height - GROUND_LEVEL_OFFSET) / zoomLevel - viewY; // Approximation for now
+                                                                                          // This needs to be relative to the world, not screen
+            const worldImageBottomY = (canvas.height - GROUND_LEVEL_OFFSET); // This is a screen coordinate target.
+
+            // Let's try to fix the image's bottom relative to the game's ground level.
+            // The game's ground level is effectively `canvas.height - GROUND_LEVEL_OFFSET` in screen space.
+            // In world space, this means `( (canvas.height - GROUND_LEVEL_OFFSET) - panY ) / zoomLevel`.
+            // This is where the visual ground line is. We want the image to sit on this.
+            const imageWorldY = (canvas.height - GROUND_LEVEL_OFFSET - imgHeight * zoomLevel - panY) / zoomLevel;
+                                //This calculation is getting complex due to mapping screen space to world space.
+                                //Let's simplify: define the image's bottom Y in world units first.
+                                //The trees are planted at `initialTreeY = canvas.height - GROUND_LEVEL_OFFSET`.
+                                //So, this `initialTreeY` can be our reference world Y for the ground.
+                                //The image should sit on this line.
+            const imageBaseWorldY = (canvas.height - GROUND_LEVEL_OFFSET); // Base Y for trees in screen space, effectively world 0 for tree base
+            const imageTopWorldY = imageBaseWorldY - imgHeight;
+
+
+            // Tiling logic:
+            // Start drawing from the left edge of the view, ensuring pattern alignment
+            const startX = Math.floor(viewX / imgWidth) * imgWidth;
             const endX = viewX + viewWidth;
 
             for (let x = startX; x < endX; x += imgWidth) {
-                ctx.drawImage(backgroundImage, x, imageActualY, imgWidth, imgHeight);
+                // We need to draw the image such that its bottom edge is at `imageBaseWorldY`.
+                // The `drawImage` y-coordinate is the top-left of the image.
+                // So, y = imageBaseWorldY - imgHeight (in world coordinates)
+                ctx.drawImage(backgroundImage, x, imageTopWorldY, imgWidth, imgHeight);
             }
 
-            // --- 3. Draw Ground Color ---
-            // The ground color needs to fill two potential areas:
-            // A) The area below the background image strip, down to the bottom of the view.
-            // B) The area below the fixed game ground line, if it's visible and potentially above where (A) starts.
-
+            // --- 3. Draw Bottom Background Color ---
+            // This color fills the area below the image.
             ctx.fillStyle = '#6eb23e';
-
-            // Define the fixed game ground line in world coordinates.
-            // Trees are planted at `canvas.height - GROUND_LEVEL_OFFSET` (which is `initialTreeY`).
-            // This is the Y coordinate in the world where the "solid ground" begins.
-            const gameGroundLineWorldY = (canvas.height - GROUND_LEVEL_OFFSET);
-
-            // Area A: Fill below the image strip.
-            // This starts at the bottom of the image strip and goes to the bottom of the view.
-            const groundFillStartY_A = imageActualY + imgHeight;
-            const groundFillEndY_A = viewY + viewHeight;
-            const heightToFill_A = groundFillEndY_A - groundFillStartY_A;
-
-            if (heightToFill_A > 0) {
-                ctx.fillRect(viewX, groundFillStartY_A, viewWidth, heightToFill_A);
-            }
-
-            // Area B: Ensure everything below the fixed game ground line is green.
-            // This is important if the image strip is very high up due to panning,
-            // or if the image is very short.
-            // We need to fill from `gameGroundLineWorldY` to `viewY + viewHeight` if `gameGroundLineWorldY` is within the view.
-
-            // Calculate the visible portion of this fixed ground area.
-            const visibleFixedGroundStartY = Math.max(gameGroundLineWorldY, viewY);
-            const visibleFixedGroundEndY = viewY + viewHeight;
-            const heightToFill_B = visibleFixedGroundEndY - visibleFixedGroundStartY;
-
-            if (heightToFill_B > 0 && gameGroundLineWorldY < (viewY + viewHeight) ) {
-                 // Only fill if the gameGroundLineWorldY is actually above the bottom of the view
-                ctx.fillRect(viewX, visibleFixedGroundStartY, viewWidth, heightToFill_B);
-            }
+            // The fill should start from the bottom of the image and go downwards.
+            // The image bottom is at `imageBaseWorldY`.
+            // It should fill from imageBaseWorldY to the bottom of the view.
+            ctx.fillRect(viewX, imageBaseWorldY, viewWidth, viewHeight - (imageBaseWorldY - viewY) );
 
 
         } else {
-            // Fallback if image not loaded: fill with a default sky color and ground color
+            // Fallback if image not loaded: fill with a default sky color
             ctx.fillStyle = '#4ab2e9'; // Default sky
-            ctx.fillRect(viewX, viewY, viewWidth, viewHeight); // Use viewX, viewY, viewWidth, viewHeight
-
+            ctx.fillRect(-panX / zoomLevel, -panY / zoomLevel, canvas.width / zoomLevel, canvas.height / zoomLevel);
             ctx.fillStyle = '#6eb23e'; // Default ground
-            // Ground starts at the fixed game ground line
-            const gameGroundLineWorldY = (canvas.height - GROUND_LEVEL_OFFSET);
-            const visibleFixedGroundStartY = Math.max(gameGroundLineWorldY, viewY);
-            const visibleFixedGroundEndY = viewY + viewHeight;
-            const heightToFill_Fallback = visibleFixedGroundEndY - visibleFixedGroundStartY;
-
-            if (heightToFill_Fallback > 0 && gameGroundLineWorldY < (viewY + viewHeight)) {
-                 ctx.fillRect(viewX, visibleFixedGroundStartY, viewWidth, heightToFill_Fallback);
-            }
+            const groundStartWorldY = (canvas.height - GROUND_LEVEL_OFFSET - panY) / zoomLevel;
+            ctx.fillRect(-panX / zoomLevel, groundStartWorldY, canvas.width / zoomLevel, (canvas.height / zoomLevel) - groundStartWorldY + (-panY / zoomLevel) );
         }
         // --- Background Drawing Ends ---
 
 
-        // Draw ground (simple line) - This was previously removed, keep it removed or add based on visual preference.
+        // Draw ground (simple line)
         // This should be drawn on top of the background colors/image.
         ctx.strokeStyle = 'SaddleBrown';
         ctx.lineWidth = 4; // Adjusted for world coordinates (zoom will scale it)
