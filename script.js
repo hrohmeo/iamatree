@@ -21,6 +21,21 @@ document.addEventListener('DOMContentLoaded', () => {
     let panX = 0; // Renamed from offsetX to avoid conflict with event properties
     let panY = 0; // Renamed from offsetY
 
+    // Background Image
+    const backgroundImage = new Image();
+    backgroundImage.src = 'treebg.png'; // Assume treebg.png is in the same directory
+    let backgroundImageLoaded = false;
+
+    backgroundImage.onload = () => {
+        backgroundImageLoaded = true;
+        drawGame(); // Redraw the game once the image is loaded
+    };
+
+    backgroundImage.onerror = () => {
+        console.error("Error loading background image.");
+        // Optionally, handle the error, e.g., by using a fallback background
+    };
+
     // Tree class
     class Tree {
         constructor(x, y, height = 10, width = 5, color = 'saddlebrown', maxWidth = 30) {
@@ -598,30 +613,104 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.restore(); // Restore to whatever state it was (should be default)
 
-        // Apply pan and zoom
+        // Apply pan and zoom transformations for the entire game world
         ctx.save();
         ctx.translate(panX, panY);
         ctx.scale(zoomLevel, zoomLevel);
 
-        // Draw ground (simple line)
-        // Note: Ground position might need adjustment or be drawn in world coordinates
-        // For now, it will be affected by zoom/pan as well.
-        ctx.strokeStyle = 'SaddleBrown'; // Color for the ground line
-        ctx.lineWidth = 4 / zoomLevel; // Keep line width visually consistent
-        ctx.beginPath();
-        // Adjust ground Y based on current panY and zoomLevel if it's meant to be fixed on screen
-        // Or, if ground is part of the "world", its coordinates should be static world coordinates.
-        // Assuming ground is part of the zoomable world for now.
-        const groundY = canvas.height - GROUND_LEVEL_OFFSET + 2;
-        ctx.moveTo(0, groundY); // Ground starts at world coordinate 0
-        ctx.lineTo(canvas.width / zoomLevel, groundY); // Ground extends to the visible width in world coordinates
-        ctx.stroke();
-        ctx.lineWidth = 1; // Reset line width (will be affected by scale)
+        // --- Background Drawing Starts ---
+        if (backgroundImageLoaded) {
+            const imgWidth = backgroundImage.naturalWidth;
+            const imgHeight = backgroundImage.naturalHeight;
 
-        // Update and draw game objects
+            // Calculate the visible portion of the world in world coordinates
+            const viewX = -panX / zoomLevel;
+            const viewY = -panY / zoomLevel;
+            const viewWidth = canvas.width / zoomLevel;
+            const viewHeight = canvas.height / zoomLevel;
+
+            // --- 1. Draw Background Colors ---
+            // Top color (#4ab2e9)
+            ctx.fillStyle = '#4ab2e9';
+            ctx.fillRect(viewX, viewY, viewWidth, viewHeight);
+
+            // --- 2. Draw Tiled Background Image ---
+            // The image should be placed towards the "bottom" of the sky.
+            // Let's assume the image's bottom edge aligns with where the "ground color" begins.
+            // For now, let ground color start where tree roots typically are, or slightly above.
+            // The groundY for drawing the actual ground line is: canvas.height - GROUND_LEVEL_OFFSET + 2
+            // This groundY is in screen coordinates before zoom/pan.
+            // We need to define a "horizon" or "image bottom" in world coordinates.
+            // Let's place the bottom of the image at a Y coordinate that corresponds to the visual ground.
+            // The ground line is drawn at `canvas.height - GROUND_LEVEL_OFFSET + 2` (screen space)
+            // World Y for image bottom:
+            const imageBottomY = (canvas.height - GROUND_LEVEL_OFFSET) / zoomLevel - viewY; // Approximation for now
+                                                                                          // This needs to be relative to the world, not screen
+            const worldImageBottomY = (canvas.height - GROUND_LEVEL_OFFSET); // This is a screen coordinate target.
+
+            // Let's try to fix the image's bottom relative to the game's ground level.
+            // The game's ground level is effectively `canvas.height - GROUND_LEVEL_OFFSET` in screen space.
+            // In world space, this means `( (canvas.height - GROUND_LEVEL_OFFSET) - panY ) / zoomLevel`.
+            // This is where the visual ground line is. We want the image to sit on this.
+            const imageWorldY = (canvas.height - GROUND_LEVEL_OFFSET - imgHeight * zoomLevel - panY) / zoomLevel;
+                                //This calculation is getting complex due to mapping screen space to world space.
+                                //Let's simplify: define the image's bottom Y in world units first.
+                                //The trees are planted at `initialTreeY = canvas.height - GROUND_LEVEL_OFFSET`.
+                                //So, this `initialTreeY` can be our reference world Y for the ground.
+                                //The image should sit on this line.
+            const imageBaseWorldY = (canvas.height - GROUND_LEVEL_OFFSET); // Base Y for trees in screen space, effectively world 0 for tree base
+            const imageTopWorldY = imageBaseWorldY - imgHeight;
+
+
+            // Tiling logic:
+            // Start drawing from the left edge of the view, ensuring pattern alignment
+            const startX = Math.floor(viewX / imgWidth) * imgWidth;
+            const endX = viewX + viewWidth;
+
+            for (let x = startX; x < endX; x += imgWidth) {
+                // We need to draw the image such that its bottom edge is at `imageBaseWorldY`.
+                // The `drawImage` y-coordinate is the top-left of the image.
+                // So, y = imageBaseWorldY - imgHeight (in world coordinates)
+                ctx.drawImage(backgroundImage, x, imageTopWorldY, imgWidth, imgHeight);
+            }
+
+            // --- 3. Draw Bottom Background Color ---
+            // This color fills the area below the image.
+            ctx.fillStyle = '#6eb23e';
+            // The fill should start from the bottom of the image and go downwards.
+            // The image bottom is at `imageBaseWorldY`.
+            // It should fill from imageBaseWorldY to the bottom of the view.
+            ctx.fillRect(viewX, imageBaseWorldY, viewWidth, viewHeight - (imageBaseWorldY - viewY) );
+
+
+        } else {
+            // Fallback if image not loaded: fill with a default sky color
+            ctx.fillStyle = '#4ab2e9'; // Default sky
+            ctx.fillRect(-panX / zoomLevel, -panY / zoomLevel, canvas.width / zoomLevel, canvas.height / zoomLevel);
+            ctx.fillStyle = '#6eb23e'; // Default ground
+            const groundStartWorldY = (canvas.height - GROUND_LEVEL_OFFSET - panY) / zoomLevel;
+            ctx.fillRect(-panX / zoomLevel, groundStartWorldY, canvas.width / zoomLevel, (canvas.height / zoomLevel) - groundStartWorldY + (-panY / zoomLevel) );
+        }
+        // --- Background Drawing Ends ---
+
+
+        // Draw ground (simple line)
+        // This should be drawn on top of the background colors/image.
+        ctx.strokeStyle = 'SaddleBrown';
+        ctx.lineWidth = 4; // Adjusted for world coordinates (zoom will scale it)
+        ctx.beginPath();
+        const groundLineY = canvas.height - GROUND_LEVEL_OFFSET; // Reference in original screen coordinate system
+                                                                // This is effectively a world Y coordinate.
+        // We need to draw this line across the entire visible world width.
+        ctx.moveTo(-panX / zoomLevel, groundLineY);
+        ctx.lineTo((-panX + canvas.width) / zoomLevel, groundLineY);
+        ctx.stroke();
+
+
+        // Update and draw game objects (trees, etc.)
         trees.forEach(tree => tree.draw());
 
-        ctx.restore(); // Restore to pre-zoom/pan state
+        ctx.restore(); // Restore to pre-zoom/pan state (identity transform)
     }
 
     // Event Listeners for UI
