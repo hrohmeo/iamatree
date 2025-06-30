@@ -14,6 +14,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Game variables
     let score = 0;
     let trees = [];
+    let zoomLevel = 1.0;
+    let minZoom = 0.2;
+    let maxZoom = 5.0;
+    let zoomStep = 0.1;
+    let panX = 0; // Renamed from offsetX to avoid conflict with event properties
+    let panY = 0; // Renamed from offsetY
 
     // Tree class
     class Tree {
@@ -495,6 +501,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const produceFruitButton = document.getElementById('produce-fruit-button');
     const plantNewTreeButton = document.getElementById('plant-new-tree-button');
     const scoreDisplay = document.getElementById('current-score');
+    // const zoomInButton = document.getElementById('zoom-in-button'); // Removed
+    // const zoomOutButton = document.getElementById('zoom-out-button'); // Removed
 
     // Input fields
     const growHeightInput = document.getElementById('grow-height-input');
@@ -584,20 +592,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawGame() {
-        // Clear canvas
+        // Clear canvas (before transformations)
+        ctx.save(); // Save the default state
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform to identity
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.restore(); // Restore to whatever state it was (should be default)
+
+        // Apply pan and zoom
+        ctx.save();
+        ctx.translate(panX, panY);
+        ctx.scale(zoomLevel, zoomLevel);
 
         // Draw ground (simple line)
+        // Note: Ground position might need adjustment or be drawn in world coordinates
+        // For now, it will be affected by zoom/pan as well.
         ctx.strokeStyle = 'SaddleBrown'; // Color for the ground line
-        ctx.lineWidth = 4; // Thickness of the ground line
+        ctx.lineWidth = 4 / zoomLevel; // Keep line width visually consistent
         ctx.beginPath();
-        ctx.moveTo(0, canvas.height - GROUND_LEVEL_OFFSET + 2); // +2 to align with trunk base visually
-        ctx.lineTo(canvas.width, canvas.height - GROUND_LEVEL_OFFSET + 2);
+        // Adjust ground Y based on current panY and zoomLevel if it's meant to be fixed on screen
+        // Or, if ground is part of the "world", its coordinates should be static world coordinates.
+        // Assuming ground is part of the zoomable world for now.
+        const groundY = canvas.height - GROUND_LEVEL_OFFSET + 2;
+        ctx.moveTo(0, groundY); // Ground starts at world coordinate 0
+        ctx.lineTo(canvas.width / zoomLevel, groundY); // Ground extends to the visible width in world coordinates
         ctx.stroke();
-        ctx.lineWidth = 1; // Reset line width
+        ctx.lineWidth = 1; // Reset line width (will be affected by scale)
 
         // Update and draw game objects
         trees.forEach(tree => tree.draw());
+
+        ctx.restore(); // Restore to pre-zoom/pan state
     }
 
     // Event Listeners for UI
@@ -702,4 +726,180 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize the game
     initializeGame();
+
+    // Basic Panning with Mouse (Optional - for better UX with zoom)
+    let isPanning = false;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+
+    canvas.addEventListener('mousedown', (e) => {
+        // Check if the click is on the canvas itself, not UI elements if they were overlaid
+        isPanning = true;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+        canvas.style.cursor = 'grabbing';
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (isPanning) {
+            const dx = e.clientX - lastMouseX;
+            const dy = e.clientY - lastMouseY;
+            panX += dx;
+            panY += dy;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            // drawGame(); // Redraw is implicitly handled by gameLoop
+        }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        if (isPanning) {
+            isPanning = false;
+            canvas.style.cursor = 'grab';
+        }
+    });
+
+    canvas.addEventListener('mouseleave', () => { // Stop panning if mouse leaves canvas
+        if (isPanning) {
+            isPanning = false;
+            canvas.style.cursor = 'default'; // Or 'grab' if you want to indicate it's grabbable
+        }
+    });
+
+    // Add grab cursor initially
+    canvas.style.cursor = 'grab';
+
+    // Touch event variables
+    let initialPinchDistance = null;
+    let lastPanX = panX; // To store panX before pinch zoom for correct offsetting
+    let lastPanY = panY; // To store panY before pinch zoom for correct offsetting
+
+
+    // Wheel to zoom (Optional - for better UX)
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault(); // Prevent page scrolling
+
+        const rect = canvas.getBoundingClientRect();
+        // Mouse position relative to canvas top-left
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // World coordinates before zoom
+        const worldXBeforeZoom = (mouseX - panX) / zoomLevel;
+        const worldYBeforeZoom = (mouseY - panY) / zoomLevel;
+
+        if (e.deltaY < 0) { // Zoom in
+            zoomLevel = Math.min(maxZoom, zoomLevel + zoomStep);
+        } else { // Zoom out
+            zoomLevel = Math.max(minZoom, zoomLevel - zoomStep);
+        }
+
+        // After zoom, adjust panX and panY to keep the point under the mouse stationary
+        panX = mouseX - worldXBeforeZoom * zoomLevel;
+        panY = mouseY - worldYBeforeZoom * zoomLevel;
+
+        // drawGame(); // Redraw is implicitly handled by gameLoop
+    }, { passive: false }); // passive: false to allow preventDefault
+
+
+    // Touch Event Handlers for Pinch-to-Zoom and Swipe-to-Pan
+
+    function getDistance(p1, p2) {
+        return Math.sqrt(Math.pow(p2.clientX - p1.clientX, 2) + Math.pow(p2.clientY - p1.clientY, 2));
+    }
+
+    function getMidpoint(p1, p2) {
+        return {
+            x: (p1.clientX + p2.clientX) / 2,
+            y: (p1.clientY + p2.clientY) / 2,
+        };
+    }
+
+    let lastTouchX = 0;
+    let lastTouchY = 0;
+    let isTouching = false; // For single touch panning
+
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touches = e.touches;
+        if (touches.length === 2) {
+            // Pinch-to-zoom
+            initialPinchDistance = getDistance(touches[0], touches[1]);
+            // Store current pan values to correctly offset during zoom
+            lastPanX = panX;
+            lastPanY = panY;
+            isPanning = false; // Disable mouse panning during pinch
+            isTouching = false; // Disable single touch panning
+        } else if (touches.length === 1) {
+            // Single touch for panning
+            isPanning = false; // Disable mouse panning
+            isTouching = true;
+            lastTouchX = touches[0].clientX;
+            lastTouchY = touches[0].clientY;
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const touches = e.touches;
+        if (touches.length === 2 && initialPinchDistance !== null) {
+            // Pinch-to-zoom
+            const currentPinchDistance = getDistance(touches[0], touches[1]);
+            const zoomFactor = currentPinchDistance / initialPinchDistance;
+            const newZoomLevel = Math.max(minZoom, Math.min(maxZoom, zoomLevel * zoomFactor));
+
+            // Calculate midpoint of current touches relative to canvas
+            const rect = canvas.getBoundingClientRect();
+            const midPoint = getMidpoint(touches[0], touches[1]);
+            const mouseX = midPoint.x - rect.left;
+            const mouseY = midPoint.y - rect.top;
+
+            // Calculate world coordinates of midpoint before zoom
+            // Important: use the panX/panY from *before* this pinch operation started
+            const worldXBeforeZoom = (mouseX - lastPanX) / zoomLevel;
+            const worldYBeforeZoom = (mouseY - lastPanY) / zoomLevel;
+
+            zoomLevel = newZoomLevel; // Apply the new zoom level
+
+            // Adjust panX and panY to keep the point under the midpoint stationary
+            panX = mouseX - worldXBeforeZoom * zoomLevel;
+            panY = mouseY - worldYBeforeZoom * zoomLevel;
+
+            initialPinchDistance = currentPinchDistance; // Update for next move event
+             // Update lastPanX/Y for continuous pinch without lifting fingers
+            lastPanX = panX;
+            lastPanY = panY;
+
+
+        } else if (touches.length === 1 && isTouching) {
+            // Single touch for panning
+            const touch = touches[0];
+            const dx = touch.clientX - lastTouchX;
+            const dy = touch.clientY - lastTouchY;
+            panX += dx;
+            panY += dy;
+            lastTouchX = touch.clientX;
+            lastTouchY = touch.clientY;
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        if (e.touches.length < 2) {
+            initialPinchDistance = null; // Reset pinch distance
+        }
+        if (e.touches.length < 1) {
+            isTouching = false; // Reset single touch panning
+        }
+        // Re-enable mouse panning if no touches are active.
+        // The existing mouseup/mouseleave handlers for mouse panning should correctly set isPanning.
+        // If there are still touches, one of the touch handlers will set isPanning or isTouching.
+    }, { passive: false });
+
+    canvas.addEventListener('touchcancel', (e) => {
+        e.preventDefault();
+        initialPinchDistance = null;
+        isTouching = false;
+    }, { passive: false });
+
 });
