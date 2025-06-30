@@ -535,7 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create the first tree
         if (trees.length === 0) {
             const initialTreeX = canvas.width / 2;
-            const initialTreeY = canvas.height - GROUND_LEVEL_OFFSET;
+            const initialTreeY = 830; // Fixed position from the top
             trees.push(new Tree(initialTreeX, initialTreeY));
         }
         updateButtonStates(); // Centralized button state management
