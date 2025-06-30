@@ -4,6 +4,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Game Configuration
     const MAX_TREE_HEIGHT = 1000; // Maximum height a tree can reach
+
+    // Constants for branch number calculation based on height
+    const MIN_BRANCHES_AT_MIN_HEIGHT_FOR_BRANCHING = 2;
+    const MAX_BRANCHES_AT_MAX_TREE_HEIGHT = 1000;
+    const BRANCH_SCALING_EXPONENT = 1.5;
+
     const gameRules = {
         minHeightForBranches: 100,
         minHeightForFruits: 250,
@@ -237,6 +243,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         addBranch() {
+            const maxAllowed = calculateMaxAllowedBranches(
+                this.height,
+                gameRules.minHeightForBranches,
+                MAX_TREE_HEIGHT,
+                MIN_BRANCHES_AT_MIN_HEIGHT_FOR_BRANCHING,
+                MAX_BRANCHES_AT_MAX_TREE_HEIGHT,
+                BRANCH_SCALING_EXPONENT
+            );
+
+            if (this.getAllBranches().length >= maxAllowed) {
+                console.log(`Cannot add trunk branch: maximum ${maxAllowed} branches for current height ${this.height} reached. Current branches: ${this.getAllBranches().length}`);
+                return;
+            }
+
             if (this.height < gameRules.minHeightForBranches) {
                 console.log(`Tree is too short for branches. Min height: ${gameRules.minHeightForBranches}, current: ${this.height}`);
                 return;
@@ -392,6 +412,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         addChildBranch() {
+            const maxAllowedOnTree = calculateMaxAllowedBranches(
+                this.parentTree.height,
+                gameRules.minHeightForBranches,
+                MAX_TREE_HEIGHT,
+                MIN_BRANCHES_AT_MIN_HEIGHT_FOR_BRANCHING,
+                MAX_BRANCHES_AT_MAX_TREE_HEIGHT,
+                BRANCH_SCALING_EXPONENT
+            );
+
+            if (this.parentTree.getAllBranches().length >= maxAllowedOnTree) {
+                console.log(`Cannot add child branch: maximum ${maxAllowedOnTree} branches for current tree height ${this.parentTree.height} reached. Current branches on tree: ${this.parentTree.getAllBranches().length}`);
+                return;
+            }
+
             if (this.length < 10 || this.childBranches.length > 2) { // Don't branch if too short or too many children
                 console.log("Branch is too short or already has enough child branches.");
                 return;
@@ -608,6 +642,30 @@ document.addEventListener('DOMContentLoaded', () => {
     // Input fields
     const growHeightInput = document.getElementById('grow-height-input');
     const growRootsInput = document.getElementById('grow-roots-input');
+
+    // Utility function to calculate maximum allowed branches based on tree height
+    function calculateMaxAllowedBranches(height, minHeightForBranches, maxHeight, minBranches, maxBranches, exponent) {
+        if (height < minHeightForBranches) {
+            return 0;
+        }
+        if (height >= maxHeight) {
+            return maxBranches;
+        }
+
+        const effectiveHeight = height - minHeightForBranches;
+        const totalEffectiveHeightRange = maxHeight - minHeightForBranches;
+
+        if (totalEffectiveHeightRange <= 0) {
+            // This case implies minHeightForBranches >= maxHeight, so effectively only minBranches apply if height condition met.
+            return minBranches;
+        }
+
+        const heightRatio = effectiveHeight / totalEffectiveHeightRange;
+        const additionalBranches = (maxBranches - minBranches) * Math.pow(heightRatio, exponent);
+
+        return Math.floor(minBranches + additionalBranches);
+    }
+
     const growLeavesInput = document.getElementById('grow-leaves-input');
     const addBranchInput = document.getElementById('add-branch-input');
     const produceFruitInput = document.getElementById('produce-fruit-input');
@@ -655,7 +713,16 @@ document.addEventListener('DOMContentLoaded', () => {
         growHeightButton.disabled = currentTree.height >= MAX_TREE_HEIGHT;
 
         // Add Branch button
-        addBranchButton.disabled = currentTree.height < gameRules.minHeightForBranches;
+        const maxAllowedBranches = calculateMaxAllowedBranches(
+            currentTree.height,
+            gameRules.minHeightForBranches,
+            MAX_TREE_HEIGHT,
+            MIN_BRANCHES_AT_MIN_HEIGHT_FOR_BRANCHING,
+            MAX_BRANCHES_AT_MAX_TREE_HEIGHT,
+            BRANCH_SCALING_EXPONENT
+        );
+        const currentBranches = currentTree.getAllBranches().length;
+        addBranchButton.disabled = currentTree.height < gameRules.minHeightForBranches || currentBranches >= maxAllowedBranches;
 
         // Grow Leaves button
         // Enabled if there's at least one branch.
