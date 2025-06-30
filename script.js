@@ -144,20 +144,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
         addRoot() {
             // Initial root starts from the base of the trunk
-            const rootStartX = this.x - this.width / 2 + Math.random() * this.width;
+            const rootStartX = this.x - (this.width / 2) + (Math.random() * this.width);
             const rootStartY = this.y; // Base of the trunk
-            const initialLength = 15 + Math.random() * 10;
-            const initialThickness = Math.max(2, this.width / 3);
 
-            // Initial angle: downwards, with some variation
-            // PI/2 is straight down. Allow variation e.g. PI/2 +/- PI/6 (30 degrees)
+            // Length and thickness based on tree properties
+            const initialLength = (this.height / 15) + Math.random() * 10 + 10; // Adjusted for more substantial initial roots
+            const initialThickness = Math.max(2, this.width / 4); // Proportional to trunk width
+
+            // Initial angle: strictly downwards (PI/4 to 3PI/4)
+            // Math.PI / 2 is straight down. Variation is Math.PI / 4 on either side.
             const baseAngle = Math.PI / 2;
-            const angleVariation = Math.PI / 4; // +/- 45 degrees from straight down
-            const initialAngle = baseAngle + (Math.random() * angleVariation * 2 - angleVariation);
-            const rootMaxWidth = this.width * 3; // Roots can spread 3 times the current trunk width
+            const angleDeviation = Math.PI / 4; // Max 45 degrees deviation from straight down
+            const initialAngle = baseAngle + (Math.random() * angleDeviation * 2 - angleDeviation);
 
-            this.roots.push(new Root(rootStartX, rootStartY, initialLength, initialAngle, initialThickness, 0, rootMaxWidth, this.height));
-            console.log(`Root added at angle: ${initialAngle}, maxWidth: ${rootMaxWidth}`);
+            const newRoot = new Root(this, rootStartX, rootStartY, initialLength, initialAngle, initialThickness, this.color);
+            this.roots.push(newRoot);
+            console.log(`Primary root added. Angle: ${initialAngle.toFixed(2)}`);
+
+            // Automatically try to add child roots to the new primary root
+            // This creates a more developed root system from a single "addRoot" action
+            const initialBranchingAttempts = 1 + Math.floor(Math.random() * 2); // Attempt to branch 1 or 2 times
+            for (let i = 0; i < initialBranchingAttempts; i++) {
+                if (newRoot.length > 10 && newRoot.childRoots.length < 3) { // Check if the new root is substantial enough
+                    newRoot.addChildRoot();
+                }
+            }
+            // Second layer of branching for more spread, if the first child roots were successful
+            if (newRoot.childRoots.length > 0) {
+                newRoot.childRoots.forEach(childRoot => {
+                    if (Math.random() < 0.5 && childRoot.length > 10 && childRoot.childRoots.length < 2) {
+                        childRoot.addChildRoot();
+                    }
+                });
+            }
         }
 
         produceFruit(count = 1) { // Add count parameter with default value
@@ -428,54 +447,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     class Root {
-        constructor(startX, startY, length, angle, thickness, depth = 0, maxWidth, treeHeight) { // Added depth, maxWidth, and treeHeight
+        constructor(parentTree, startX, startY, length, angle, thickness, color = 'peru') {
+            this.parentTree = parentTree; // Reference to the tree, similar to Branch
             this.startX = startX;
             this.startY = startY;
-            // Lowered REFERENCE_TREE_HEIGHT to make initial roots longer, especially for small trees
-            // Initial tree height is 10. If REFERENCE_TREE_HEIGHT is 100, length becomes length * (10/100) = length * 0.1.
-            // If initial length passed is ~15-25, this becomes 1.5-2.5, which is less than 5 (min for branching).
-            // Setting it closer to the initial tree height or a bit lower should help.
-            const REFERENCE_TREE_HEIGHT = 10; // Lowered from 100
-            
-            // Calculate scaling factor, ensuring it doesn't make roots too small or disproportionately large.
-            // Let treeHeight / REFERENCE_TREE_HEIGHT define the base scaling.
-            // Cap the scaling factor to prevent excessively long roots for very tall trees if desired,
-            // and ensure a minimum factor if treeHeight is very small.
-            let scaleFactor = treeHeight / REFERENCE_TREE_HEIGHT;
-            scaleFactor = Math.max(0.5, Math.min(scaleFactor, 5)); // Min scale 0.5x, Max scale 5x of base length
-
-            this.length = length * scaleFactor; 
-            // Example: initial length 20.
-            // Tree height 10 (initial), ref 10: scaleFactor = 1. this.length = 20. (Good for branching)
-            // Tree height 5, ref 10: scaleFactor = 0.5. this.length = 10. (Good for branching)
-            // Tree height 100, ref 10: scaleFactor = 10, capped at 5. this.length = 100. (Longer roots for tall tree)
-            // Tree height 1, ref 10: scaleFactor = 0.1, floored at 0.5. this.length = 10.
-
+            this.length = length;
             this.angle = angle; // Angle in radians (0 is right, PI/2 is down)
-            this.thickness = Math.max(1, thickness - depth * 0.5); // Roots get thinner with depth
-            this.color = 'peru';
-            this.depth = depth; // How many segments away from the main root
+            this.thickness = Math.max(1, thickness); // Ensure thickness is at least 1
+            this.color = parentTree ? parentTree.color : color; // Inherit color or use default
             this.childRoots = [];
-            this.maxWidth = maxWidth; // Max spread for roots
-            this.treeHeight = treeHeight; // Store tree height
 
             this.endX = this.startX + Math.cos(this.angle) * this.length;
             this.endY = this.startY + Math.sin(this.angle) * this.length;
 
-            // Attempt to branch if not too deep and within reasonable y-bounds
-            const MAX_ROOT_DEPTH_LEVEL = 4; // Max recursion depth for branching
-            const MAX_ROOT_Y_POSITION = canvas.height - 5; // Don't let roots grow off the bottom of the canvas
-
-            if (this.depth < MAX_ROOT_DEPTH_LEVEL && this.endY < MAX_ROOT_Y_POSITION && this.length > 5) {
-                // More aggressive branching, similar to tree branches
-                 if (Math.random() < 0.6) { // Higher chance to branch - Reverted from true
-                    this.tryBranch();
-                }
-                // Chance for a second branch from the same point
-                if (this.depth < MAX_ROOT_DEPTH_LEVEL -1 && Math.random() < 0.4) { // Reverted from true
-                    this.tryBranch();
-                }
-            }
+            // Automatic branching logic will be moved to a separate method, e.g., addChildRoot
+            // and called from Tree.addRoot or explicitly by a game action.
+            // For now, the constructor just creates the root segment.
         }
 
         draw() {
@@ -483,65 +470,126 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.moveTo(this.startX, this.startY);
             ctx.lineTo(this.endX, this.endY);
             ctx.lineWidth = this.thickness;
-            ctx.strokeStyle = this.color;
+            // Use the root's own color, which might be different from the trunk if desired.
+            // For now, let's use a distinct root color.
+            ctx.strokeStyle = 'peru'; // Or this.color if we want to allow varied root colors
             ctx.stroke();
 
             this.childRoots.forEach(child => child.draw());
         }
 
-        tryBranch() {
-            // console.log(`[tryBranch] Called. Depth: ${this.depth}, Length: ${this.length}, EndY: ${this.endY}, TreeHeight: ${this.treeHeight}`); // Removed log
-
-            const MAX_ANGLE_SPREAD = Math.PI / 2.5; // Max angle change from parent, allows wider spread (e.g. +/- 36 degrees from parent)
-
-            // Determine angle variation: ensure roots spread outwards and downwards
-            let angleVariation = (Math.random() * MAX_ANGLE_SPREAD) - (MAX_ANGLE_SPREAD / 2);
-
-            // Ensure the new angle is generally downwards
-            // Current angle might be anything. We want to bias towards PI/2 (down).
-            // If current angle is far from PI/2, nudge it closer.
-            let newAngle = this.angle + angleVariation;
-
-            // Nudge towards PI/2 if too horizontal, to encourage downward growth overall
-            const downwardBiasStrength = 0.2; // How strongly to pull towards PI/2
-            if (Math.abs(newAngle - Math.PI/2) > Math.PI/4) { // If angle is more than 45 deg from straight down
-                 newAngle = newAngle * (1 - downwardBiasStrength) + (Math.PI/2) * downwardBiasStrength;
-            }
-
-
-            // Prevent roots from growing too far horizontally beyond maxWidth from the tree's base (this.parentTree.x)
-            // This requires access to parentTree.x, which Root doesn't have directly.
-            // For now, we'll use a simpler heuristic based on the starting X of the root system (initial call to new Root)
-            // This isn't perfect, but avoids complex parent tree reference passing for now.
-            // A better approach would be to pass the tree's center X to the constructor.
-            // For now, let's assume `this.maxWidth` is the total allowed spread from the initial root point.
-            // And `this.startX` of the very first root segment is the center line.
-            // This logic is tricky without the tree's actual center.
-            // Let's assume the initial call to addRoot will set a sensible initial angle.
-
-            // This logic is tricky without the tree's actual center.
-            // Let's assume the initial call to addRoot will set a sensible initial angle.
-
-            // The length of child roots should primarily be a fraction of the parent root's length.
-            // The parent root's length (this.length) is already scaled by treeHeight in the constructor.
-            // So, we just take a fraction of the already scaled parent length.
-            const newLength = this.length * (0.5 + Math.random() * 0.4); // 50-90% of parent length
-            // console.log(`[tryBranch] Parent Length: ${this.length}, Calculated newLength for child: ${newLength}`); // Removed log
-
-            if (newLength < 3) {
-                // console.log(`[tryBranch] Child root new length ${newLength} is less than 3. Aborting branch.`); // Removed log
-                return; // Min length for a root segment
-            }
-
-            // Check if the new root would go beyond the canvas bottom significantly
-            const prospectiveEndY = this.endY + Math.sin(newAngle) * newLength;
-            if (prospectiveEndY > canvas.height - 5) { // 5px buffer from bottom
-                // console.log(`[tryBranch] Prospective EndY ${prospectiveEndY} is off canvas. Returning.`); // Removed log
+        // This method will be adapted from the old tryBranch and current Branch.addChildBranch
+        addChildRoot() {
+            // Basic conditions to prevent overly dense or tiny roots
+            if (this.length < 8 || this.childRoots.length > 2) { // Max 2 child roots per segment, min length 8
+                // console.log("Root segment is too short or already has enough child roots.");
                 return;
             }
 
-            // console.log(`[tryBranch] Adding child root. New Length: ${newLength}, New Angle: ${newAngle}, Depth: ${this.depth + 1}`); // Removed log
-            this.childRoots.push(new Root(this.endX, this.endY, newLength, newAngle, this.thickness, this.depth + 1, this.maxWidth, this.treeHeight)); // Pass treeHeight
+            const newLength = this.length * (0.5 + Math.random() * 0.4); // 50-90% of parent length
+            const newThickness = Math.max(1, this.thickness * 0.8); // 80% of parent thickness, min 1
+
+            let newAngle;
+            let attempts = 0;
+            const maxAttempts = 10; // Prevent infinite loop if angle generation is stuck
+
+            do {
+                // Angle relative to parent branch, can go downwards or sideways
+                // Max deviation of, say, 60 degrees (PI/3) from parent's angle initially
+                const angleVariation = (Math.PI / 2.5) * (Math.random() - 0.5); // Varies by +/- 36 degrees from parent
+                newAngle = this.angle + angleVariation;
+
+                // Normalize angle to the range [-PI, PI] for consistent checks
+                // (angle + PI) % (2 * PI) - PI normalizes to [-PI, PI]
+                newAngle = (newAngle + Math.PI * 3) % (Math.PI * 2) - Math.PI; // Ensure positive before modulo, then shift
+
+                // Constraint: Child roots can grow in any direction except sharply upwards.
+                // "Sharply upwards" means not more than 45 degrees from horizontal, towards the sky.
+                // Sky is generally angles from 0 (exclusive) to -PI (exclusive).
+                // -PI/2 is straight up.
+                // Forbidden zone: angles between -PI/4 (i.e., -45 deg) and -3*PI/4 (i.e., -135 deg).
+                // This is an upward cone of 90 degrees, centered on straight up.
+                const forbiddenMin = - (3 * Math.PI / 4); // -135 degrees
+                const forbiddenMax = - (Math.PI / 4);     // -45 degrees
+
+                if (newAngle > forbiddenMin && newAngle < forbiddenMax) {
+                    // Angle is in the forbidden "sharply upward" zone.
+                    // Adjust it to be more horizontal or downward.
+                    // Example: if it's pointing up-left, nudge it to left-horizontal or more down.
+                    // if it's pointing up-right, nudge to right-horizontal or more down.
+                    if (newAngle < -Math.PI / 2) { // Between -135 and -90 (up-left quadrant)
+                        // Push towards left horizontal (-PI) or downwards (PI/2)
+                        newAngle = -Math.PI + (Math.random() * Math.PI / 4); // Bias towards left horizontal
+                    } else { // Between -90 and -45 (up-right quadrant)
+                        // Push towards right horizontal (0) or downwards (PI/2)
+                        newAngle = 0 - (Math.random() * Math.PI / 4); // Bias towards right horizontal
+                    }
+                    // console.log(`Adjusted angle from forbidden zone to ${newAngle.toFixed(2)}`);
+                }
+                attempts++;
+            } while ((newAngle > (-3 * Math.PI / 4) && newAngle < (-Math.PI / 4)) && attempts < maxAttempts);
+
+            if (attempts >= maxAttempts) {
+                // console.log("Could not find a suitable angle for child root after max attempts.");
+                return;
+            }
+
+            // Calculate prospective end Y
+            let prospectiveEndY = this.endY + Math.sin(newAngle) * newLength;
+
+            // Constraint: Roots should not go above the tree's starting point (this.parentTree.y)
+            if (prospectiveEndY < this.parentTree.y) {
+                // If the root is trying to grow above the tree base,
+                // try to adjust angle to be horizontal or slightly downwards.
+                // If this.endY is already at parentTree.y, it can only go horizontal or down.
+
+                // If endY is very close to or above parentTree.y, only allow horizontal or downward angles.
+                if (this.endY <= this.parentTree.y + 2) { // Small tolerance
+                    if (newAngle < 0 && newAngle > -Math.PI) { // If angle is generally upwards
+                        // Try to make it horizontal.
+                        // Determine if it was going left or right.
+                        if (newAngle > -Math.PI / 2) { // Up-right quadrant
+                            newAngle = 0; // Go right
+                        } else { // Up-left quadrant
+                            newAngle = Math.PI; // Go left
+                        }
+                        // Recalculate prospectiveEndY with the new horizontal angle
+                        prospectiveEndY = this.endY + Math.sin(newAngle) * newLength;
+                        // If it's still above (e.g. due to floating point issues or if sin(0) or sin(PI) isn't exactly 0 for the engine)
+                        // or if the startY itself was already slightly above, then just don't create this root.
+                        if (prospectiveEndY < this.parentTree.y) {
+                             // console.log(`Child root aborted: Adjusted horizontal angle still results in growth above tree base. StartY: ${this.endY}, TreeBase: ${this.parentTree.y}`);
+                            return;
+                        }
+                    }
+                } else {
+                    // If it's further below, but still trying to go up too high,
+                    // simply disallow this specific branch.
+                    // console.log(`Child root aborted: ProspectiveEndY ${prospectiveEndY} is above tree base ${this.parentTree.y}.`);
+                    return;
+                }
+            }
+
+            // Check if the new root would go beyond the canvas bottom significantly
+            if (prospectiveEndY > canvas.height - 2) { // 2px buffer from bottom
+                // console.log(`Child root prospective EndY ${prospectiveEndY} is off canvas. Aborting.`);
+                return;
+            }
+
+            if (newLength < 2) { // Minimum length for a root segment
+                // console.log("Child root new length is too small. Aborting.");
+                return;
+            }
+
+            const newRoot = new Root(this.parentTree, this.endX, this.endY, newLength, newAngle, newThickness, this.color);
+            this.childRoots.push(newRoot);
+            // console.log(`Child root added. Angle: ${newAngle.toFixed(2)}`);
+
+            // Chance for the new child root to also try and branch further
+            // Reduced probability and check childBranches.length to avoid too dense structures quickly.
+            if (Math.random() < 0.4 && newRoot.childRoots.length < 2 && newRoot.length > 5) {
+                newRoot.addChildRoot();
+            }
         }
     }
 
