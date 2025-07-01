@@ -196,24 +196,62 @@ document.addEventListener('DOMContentLoaded', () => {
             // 6. Früchte zeichnen
             this.fruitObjects.forEach(fruit => fruit.draw());
 
-            // 7. Draw selection indicator if selected
-            if (this.isSelected) {
-                ctx.strokeStyle = 'yellow';
-                // Adjust line width based on zoom so it doesn't get too thick/thin
-                // The '3' is a base lineWidth, adjust as needed.
-                ctx.lineWidth = Math.max(1, 3 / zoomLevel);
-                // A small padding around the trunk
-                const padding = 5 / zoomLevel; // Padding also scales with zoom
-                ctx.beginPath(); // Start a new path for the selection box
-                ctx.rect(
-                    this.x - this.width / 2 - padding,
-                    this.y - this.height - padding,
-                    this.width + padding * 2,
-                    this.height + padding * 2
-                );
-                ctx.stroke();
-            }
+            // Glow effect for selected tree's trunk is handled before drawing the trunk.
+            // Reset shadow properties after all components of this tree are drawn,
+            // or more specifically, after the trunk if only it should glow.
+            // For now, let's assume the glow should primarily be on the trunk and reset afterwards.
         }
+
+        // Helper to reset shadow properties
+        _resetShadow(context) {
+            context.shadowColor = 'transparent';
+            context.shadowBlur = 0;
+            context.shadowOffsetX = 0;
+            context.shadowOffsetY = 0;
+        }
+
+        draw() {
+            // Apply glow if selected BEFORE drawing the trunk
+            if (this.isSelected) {
+                ctx.shadowColor = 'yellow'; // Glow color
+                ctx.shadowBlur = 15;       // Glow size/intensity
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+            } else {
+                this._resetShadow(ctx); // Ensure no glow if not selected
+            }
+
+             // Draw trunk (tapered) - this will now have a glow if selected
+            ctx.fillStyle = this.config.colors.trunk;
+            ctx.beginPath();
+            ctx.moveTo(this.x - this.width / 2, this.y);
+            ctx.lineTo(this.x + this.width / 2, this.y);
+            ctx.lineTo(this.x, this.y - this.height);
+            ctx.closePath();
+            ctx.fill();
+
+            // Reset shadow immediately after drawing the trunk if only trunk glows
+            // Or, if other parts like branches should also glow when selected,
+            // reset shadow after all parts of *this* tree are drawn.
+            // For now, let's reset it so other elements (roots, branches of this tree, other trees) are not affected.
+            this._resetShadow(ctx);
+
+            // 2. Wurzeln zeichnen
+            this.roots.forEach(root => root.draw());
+
+            // 3. Äste selbst zeichnen
+            this.branches.forEach(branch => branch.drawBranchItself());
+
+            // 4. Blätter der Äste zeichnen
+            this.branches.forEach(branch => branch.drawBranchLeaves());
+
+            // 5. Blätter am Stamm zeichnen (Fallback)
+            this.leaves.forEach(leaf => leaf.draw());
+
+            // 6. Früchte zeichnen
+            this.fruitObjects.forEach(fruit => fruit.draw());
+        }
+
 
         growHeight(amount = 10) {
             if (this.height >= this.config.maxHeight) {
