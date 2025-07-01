@@ -656,6 +656,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const addBranchInput = document.getElementById('add-branch-input');
     const produceFruitInput = document.getElementById('produce-fruit-input');
 
+    // Function to limit input length
+    function limitInputLength(inputElement, maxLength) {
+        inputElement.addEventListener('input', () => {
+            if (inputElement.value.length > maxLength) {
+                inputElement.value = inputElement.value.slice(0, maxLength);
+            }
+        });
+    }
+
+    // Apply the length limit to all relevant input fields
+    limitInputLength(growHeightInput, 4);
+    limitInputLength(growRootsInput, 4);
+    limitInputLength(growLeavesInput, 4);
+    limitInputLength(addBranchInput, 4);
+    limitInputLength(produceFruitInput, 4);
+
     // Game Setup
     function initializeGame() {
         resizeCanvas(); // Call resizeCanvas first to set correct canvas dimensions
