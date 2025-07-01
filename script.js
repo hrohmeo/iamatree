@@ -214,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Always reset shadow at the start of this tree's draw call for a clean slate.
             this._resetShadow(ctx);
 
-            if (this.isSelected) {
+            if (this.isSelected && trees.length > 1) {
                 ctx.shadowColor = 'yellow'; // Glow color
                 ctx.shadowBlur = 15;       // Glow size/intensity
                 // Ensure shadowOffset is 0 if not set elsewhere, good practice
