@@ -125,6 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Game variables
     let score = 0;
     let trees = [];
+    let selectedTree = null; // To store the currently selected tree
     let zoomLevel = 1.0;
     let minZoom = 0.2;
     let maxZoom = 5.0;
@@ -167,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.branches = []; // To store branch objects
             this.fruits = 0; // Counter for scoring, might be phased out
             this.fruitObjects = []; // To store Fruit objects
+            this.isSelected = false; // To mark if the tree is currently selected
         }
 
         draw() {
@@ -193,7 +195,63 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 6. Früchte zeichnen
             this.fruitObjects.forEach(fruit => fruit.draw());
+
+            // Glow effect for selected tree's trunk is handled before drawing the trunk.
+            // Reset shadow properties after all components of this tree are drawn,
+            // or more specifically, after the trunk if only it should glow.
+            // For now, let's assume the glow should primarily be on the trunk and reset afterwards.
         }
+
+        // Helper to reset shadow properties
+        _resetShadow(context) {
+            context.shadowColor = 'transparent';
+            context.shadowBlur = 0;
+            context.shadowOffsetX = 0;
+            context.shadowOffsetY = 0;
+        }
+
+        draw() {
+            // Always reset shadow at the start of this tree's draw call for a clean slate.
+            this._resetShadow(ctx);
+
+            if (this.isSelected) {
+                ctx.shadowColor = 'yellow'; // Glow color
+                ctx.shadowBlur = 15;       // Glow size/intensity
+                // Ensure shadowOffset is 0 if not set elsewhere, good practice
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+            }
+            // No 'else' needed here to reset, as it's done at the start of draw()
+
+             // Draw trunk (tapered) - this will now have a glow if isSelected was true
+            ctx.fillStyle = this.config.colors.trunk;
+            ctx.beginPath();
+            ctx.moveTo(this.x - this.width / 2, this.y);
+            ctx.lineTo(this.x + this.width / 2, this.y);
+            ctx.lineTo(this.x, this.y - this.height);
+            ctx.closePath();
+            ctx.fill();
+
+            // Always reset shadow after drawing the trunk (or any glowing parts)
+            // to prevent glow affecting other parts of this tree or subsequent drawings.
+            this._resetShadow(ctx);
+
+            // 2. Wurzeln zeichnen
+            this.roots.forEach(root => root.draw());
+
+            // 3. Äste selbst zeichnen
+            this.branches.forEach(branch => branch.drawBranchItself());
+
+            // 4. Blätter der Äste zeichnen
+            this.branches.forEach(branch => branch.drawBranchLeaves());
+
+            // 5. Blätter am Stamm zeichnen (Fallback)
+            this.leaves.forEach(leaf => leaf.draw());
+
+            // 6. Früchte zeichnen
+            this.fruitObjects.forEach(fruit => fruit.draw());
+        }
+
 
         growHeight(amount = 10) {
             if (this.height >= this.config.maxHeight) {
@@ -619,7 +677,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // UI Elements
     const growHeightButton = document.getElementById('grow-height-button');
-    const growRootsButton = document.getElementById('grow-roots-button');
+    const growRootsButton = document.getElementById('grow-roots-button'); // Should this be per tree or global? Assume per selected tree for now.
     const growLeavesButton = document.getElementById('grow-leaves-button');
     const addBranchButton = document.getElementById('add-branch-button');
     const produceFruitButton = document.getElementById('produce-fruit-button');
@@ -681,10 +739,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const initialTreeX = canvas.width / 2; // X can still be canvas-relative for initial placement
             const initialTreeY = WORLD_TREE_BASE_Y; // Use the new world coordinate
             // Use the first configuration from the availableTreeConfigs array
-            trees.push(new Tree(initialTreeX, initialTreeY, availableTreeConfigs[0]));
+            const firstTree = new Tree(initialTreeX, initialTreeY, availableTreeConfigs[0]);
+            trees.push(firstTree);
+            selectedTree = firstTree; // Select the first tree
+            selectedTree.isSelected = true;
             currentConfigIndex = 0; // Reset index for subsequent plantings
+            panToTree(selectedTree); // Center the initial tree
         }
-        updateButtonStates(); // Centralized button state management
+        updateButtonStates(); // Centralized button state management (will now use selectedTree)
         gameLoop();
     }
 
@@ -698,43 +760,39 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', resizeCanvas);
 
     function updateButtonStates() {
-        if (trees.length === 0) {
-            // Disable all buttons if no tree exists
-            growHeightButton.disabled = true; // Also disable grow height if no tree
+        if (!selectedTree) { // If no tree is selected
+            growHeightButton.disabled = true;
             addBranchButton.disabled = true;
             growLeavesButton.disabled = true;
             produceFruitButton.disabled = true;
-            plantNewTreeButton.disabled = true;
-            // Keep growRootsButton enabled or handle if it should also be disabled
-            return;
+            growRootsButton.disabled = true; // Also disable grow roots if no tree selected
+        } else {
+            // Grow Height button
+            growHeightButton.disabled = selectedTree.height >= selectedTree.config.maxHeight;
+            growRootsButton.disabled = false; // Enable if a tree is selected
+
+            // Add Branch button
+            const maxAllowedBranches = calculateMaxAllowedBranches(
+                selectedTree.height,
+                selectedTree.config.rules.minHeightForBranches,
+                selectedTree.config.maxHeight,
+                selectedTree.config.branchParams.minBranchesAtMinHeight,
+                selectedTree.config.branchParams.maxBranchesAtMaxHeight,
+                selectedTree.config.branchParams.scalingExponent
+            );
+            const currentBranches = selectedTree.getAllBranches().length;
+            addBranchButton.disabled = selectedTree.height < selectedTree.config.rules.minHeightForBranches || currentBranches >= maxAllowedBranches;
+
+            // Grow Leaves button
+            growLeavesButton.disabled = selectedTree.getAllBranches().length === 0;
+
+            // Produce fruit button
+            const canProduceFruit = selectedTree.height >= selectedTree.config.rules.minHeightForFruits &&
+                selectedTree.getTotalLeaves() >= selectedTree.config.rules.minLeavesForFruits;
+            produceFruitButton.disabled = !canProduceFruit;
         }
 
-        const currentTree = trees[0]; // Assuming operations are on the first tree
-
-        // Grow Height button
-        growHeightButton.disabled = currentTree.height >= currentTree.config.maxHeight;
-
-        // Add Branch button
-        const maxAllowedBranches = calculateMaxAllowedBranches(
-            currentTree.height,
-            currentTree.config.rules.minHeightForBranches,
-            currentTree.config.maxHeight,
-            currentTree.config.branchParams.minBranchesAtMinHeight,
-            currentTree.config.branchParams.maxBranchesAtMaxHeight,
-            currentTree.config.branchParams.scalingExponent
-        );
-        const currentBranches = currentTree.getAllBranches().length;
-        addBranchButton.disabled = currentTree.height < currentTree.config.rules.minHeightForBranches || currentBranches >= maxAllowedBranches;
-
-        // Grow Leaves button
-        growLeavesButton.disabled = currentTree.getAllBranches().length === 0;
-
-        // Produce fruit button
-        const canProduceFruit = currentTree.height >= currentTree.config.rules.minHeightForFruits &&
-            currentTree.getTotalLeaves() >= currentTree.config.rules.minLeavesForFruits;
-        produceFruitButton.disabled = !canProduceFruit;
-		
-        // Plant new tree button
+        // Plant new tree button - enabled if ANY tree has fruit, regardless of selection
         if (trees.some(tree => tree.fruitObjects.length > 0)) {
             plantNewTreeButton.disabled = false;
         } else {
@@ -867,49 +925,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Event Listeners for UI
     growHeightButton.addEventListener('click', () => {
-        if (trees.length > 0) {
+        if (selectedTree) {
             const inputAmount = parseInt(growHeightInput.value, 10) || 1;
             const growthAmount = inputAmount * 10; // Scale factor of 10
-            trees[0].growHeight(growthAmount); // growHeight now handles width increase
-            // The old growWidth call is removed: trees[0].growWidth(inputAmount * 0.05);
-            updateScore(); // updateScore is already called within growHeight, but calling again here ensures UI consistency if growHeight's call is removed later.
+            selectedTree.growHeight(growthAmount);
+            updateScore(); 
         }
     });
 
     growRootsButton.addEventListener('click', () => {
-        if (trees.length > 0) {
+        if (selectedTree) {
             const count = parseInt(growRootsInput.value, 10) || 1;
             for (let i = 0; i < count; i++) {
-                trees[0].addRoot();
+                selectedTree.addRoot();
             }
             updateScore();
         }
     });
 
     growLeavesButton.addEventListener('click', () => {
-        if (trees.length > 0) {
+        if (selectedTree) {
             const count = parseInt(growLeavesInput.value, 10) || 1;
             for (let i = 0; i < count; i++) {
-                trees[0].addLeaf(10 + Math.random() * 5); // Random leaf size for each
+                selectedTree.addLeaf(10 + Math.random() * 5); // Random leaf size for each
             }
             updateScore();
         }
     });
 
     produceFruitButton.addEventListener('click', () => {
-        if (trees.length > 0) {
+        if (selectedTree) {
             const count = parseInt(produceFruitInput.value, 10) || 1;
-            // The produceFruit method will handle incrementing and conditions
-            trees[0].produceFruit(count);
+            selectedTree.produceFruit(count);
             updateScore();
         }
     });
 
     plantNewTreeButton.addEventListener('click', () => {
-        const parentTree = trees.find(tree => tree.fruitObjects.length > 0);
+        // Planting a new tree can still use a fruit from *any* tree that has one.
+        // However, the user might expect it to come from the *selected* tree if it has fruit.
+        // For now, let's prioritize selectedTree if it has fruit, otherwise find any tree.
+        let parentTree = null;
+        if (selectedTree && selectedTree.fruitObjects.length > 0) {
+            parentTree = selectedTree;
+        } else {
+            parentTree = trees.find(tree => tree.fruitObjects.length > 0);
+        }
+        
         if (parentTree) {
-            parentTree.fruitObjects.pop(); // Remove one fruit object
-            parentTree.fruits = parentTree.fruitObjects.length; // Update the counter if still used elsewhere
+            parentTree.fruitObjects.pop(); 
+            parentTree.fruits = parentTree.fruitObjects.length; 
 
             const newX = Math.random() * (canvas.width - 60) + 30; // Random X, away from edges
             const newY = WORLD_TREE_BASE_Y; // Base of the trunk using the world coordinate
@@ -921,37 +986,43 @@ document.addEventListener('DOMContentLoaded', () => {
             const newTree = new Tree(newX, newY, selectedConfig);
             trees.push(newTree);
 
-            console.log(`New tree planted with config: ${selectedConfig.name}`);
-            updateScore(); // This will also call updateButtonStates
+            if (selectedTree) {
+                selectedTree.isSelected = false; // Deselect old tree
+            }
+            newTree.isSelected = true; // Select new tree
+            selectedTree = newTree;     // Update selectedTree reference
+
+            console.log(`New tree planted with config: ${selectedConfig.name}. It is now selected.`);
+            panToTree(selectedTree);    // Pan to the new tree
+            updateScore();              // This will also call updateButtonStates
         } else {
             console.log('No tree has fruit to plant a new one.');
         }
     });
 
     addBranchButton.addEventListener('click', () => {
-        if (trees.length === 0) return;
-        const currentTree = trees[0]; // For now, always operate on the first tree
+        if (!selectedTree) return;
         const count = parseInt(addBranchInput.value, 10) || 1;
 
         for (let i = 0; i < count; i++) {
             // Decide whether to add a branch to the trunk or to an existing branch
             // Use config for minHeightForBranches check
-            if (currentTree.branches.length === 0 || Math.random() < 0.4 || currentTree.height < currentTree.config.rules.minHeightForBranches + 20) {
+            if (selectedTree.branches.length === 0 || Math.random() < 0.4 || selectedTree.height < selectedTree.config.rules.minHeightForBranches + 20) {
                 // Add to trunk if no branches yet, or 40% chance, or if tree is not much taller than min height for branches
-                currentTree.addBranch();
+                selectedTree.addBranch();
             } else {
                 // Try to add to an existing branch
-                const allBranches = currentTree.getAllBranches(); // Helper function to get all branches including children
+                const allBranches = selectedTree.getAllBranches(); // Helper function to get all branches including children
                 if (allBranches.length > 0) {
                     const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
                     randomBranch.addChildBranch();
                 } else {
-                    // Fallback if somehow no branches were found (should not happen if currentTree.branches.length > 0)
-                    currentTree.addBranch();
+                    // Fallback if somehow no branches were found (should not happen if selectedTree.branches.length > 0)
+                    selectedTree.addBranch();
                 }
             }
         }
-        updateScore(); // Branches might contribute to score later, if desired
+        updateScore(); 
     });
 
     // Helper function in Tree class to get all branches (main + children)
@@ -972,12 +1043,20 @@ document.addEventListener('DOMContentLoaded', () => {
     let isPanning = false;
     let lastMouseX = 0;
     let lastMouseY = 0;
+    let clickStartTime = 0;
+    let clickStartMouseX = 0;
+    let clickStartMouseY = 0;
+    const CLICK_THRESHOLD_MS = 200; // Max time for a click
+    const CLICK_MOVE_THRESHOLD_PX = 5; // Max movement for a click
 
     canvas.addEventListener('mousedown', (e) => {
         // Check if the click is on the canvas itself, not UI elements if they were overlaid
-        isPanning = true;
+        isPanning = true; // Assume panning until mouseup
         lastMouseX = e.clientX;
         lastMouseY = e.clientY;
+        clickStartMouseX = e.clientX;
+        clickStartMouseY = e.clientY;
+        clickStartTime = Date.now();
         canvas.style.cursor = 'grabbing';
     });
 
@@ -993,12 +1072,116 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    canvas.addEventListener('mouseup', () => {
-        if (isPanning) {
-            isPanning = false;
+    canvas.addEventListener('mouseup', (e) => {
+        const clickDuration = Date.now() - clickStartTime;
+        const distanceMoved = Math.sqrt(
+            Math.pow(e.clientX - clickStartMouseX, 2) +
+            Math.pow(e.clientY - clickStartMouseY, 2)
+        );
+
+        if (isPanning) { // isPanning is true if mousedown happened on canvas
+            isPanning = false; // Reset panning state
             canvas.style.cursor = 'grab';
+
+            if (clickDuration < CLICK_THRESHOLD_MS && distanceMoved < CLICK_MOVE_THRESHOLD_PX) {
+                // This is a click
+                handleCanvasClick(e.clientX, e.clientY);
+            }
         }
     });
+
+    function handleCanvasClick(clientX, clientY) {
+        console.log(`[DEBUG] handleCanvasClick invoked. clientX: ${clientX}, clientY: ${clientY}`);
+        const rect = canvas.getBoundingClientRect();
+        const canvasX = clientX - rect.left;
+        const canvasY = clientY - rect.top;
+        console.log(`[DEBUG] canvasX: ${canvasX.toFixed(2)}, canvasY: ${canvasY.toFixed(2)}`);
+        console.log(`[DEBUG] Current panX: ${panX.toFixed(2)}, panY: ${panY.toFixed(2)}, zoomLevel: ${zoomLevel.toFixed(2)}`);
+
+        const worldX = (canvasX - panX) / zoomLevel;
+        const worldY = (canvasY - panY) / zoomLevel;
+        console.log(`[DEBUG] Calculated worldX: ${worldX.toFixed(2)}, worldY: ${worldY.toFixed(2)}`);
+
+        let clickedOnTree = false;
+        const previousSelectedTreeName = selectedTree ? selectedTree.config.name : 'null';
+        console.log(`[DEBUG] Before loop, current selectedTree: ${previousSelectedTreeName}`);
+
+        for (let i = trees.length - 1; i >= 0; i--) {
+            const tree = trees[i];
+            const treeName = tree.config.name || `Tree-${i}`; // Fallback name for logging
+            console.log(`[DEBUG] Checking tree [${i}] (${treeName}): X=${tree.x.toFixed(2)}, Y=${tree.y.toFixed(2)}, W=${tree.width.toFixed(2)}, H=${tree.height.toFixed(2)}, isSelected=${tree.isSelected}`);
+
+            const minClickX = tree.x - tree.width / 2;
+            const maxClickX = tree.x + tree.width / 2;
+            const treeTopY = tree.y - tree.height; // Y decreases upwards
+            const treeBaseY = tree.y;
+            console.log(`[DEBUG] Tree [${i}] (${treeName}) clickable bounds: X[${minClickX.toFixed(2)} to ${maxClickX.toFixed(2)}], Y[${treeTopY.toFixed(2)} to ${treeBaseY.toFixed(2)}]`);
+
+            const isInsideX = worldX >= minClickX && worldX <= maxClickX;
+            const isInsideY = worldY >= treeTopY && worldY <= treeBaseY; 
+
+            if (isInsideX && isInsideY) {
+                console.log(`[DEBUG] Click IS INSIDE tree [${i}] (${treeName})`);
+                clickedOnTree = true;
+
+                if (selectedTree === tree) {
+                    console.log(`[DEBUG] Re-clicked the currently selected tree [${i}] (${treeName}). No change in selection.`);
+                    // No actual change in selection, but we might still want to pan or do something.
+                    // For now, just break as the correct tree is already selected.
+                } else {
+                    console.log(`[DEBUG] Clicked on a DIFFERENT tree [${i}] (${treeName}). Switching selection from: ${selectedTree ? selectedTree.config.name : 'null'}`);
+                    if (selectedTree) {
+                        console.log(`[DEBUG] Deselecting old tree: ${selectedTree.config.name}, setting its isSelected to false.`);
+                        selectedTree.isSelected = false;
+                    }
+                    tree.isSelected = true;
+                    selectedTree = tree;
+                    console.log(`[DEBUG] NEW selectedTree is now [${i}] (${selectedTree.config.name}). Its isSelected is now: ${selectedTree.isSelected}`);
+                }
+                break; // Stop checking other trees once the topmost clicked tree is found and processed.
+            } else {
+                // console.log(`[DEBUG] Click is OUTSIDE tree [${i}] (${treeName})`); // Can be noisy, enable if needed
+            }
+        }
+
+        const finalSelectedTreeName = selectedTree ? selectedTree.config.name : 'null';
+        console.log(`[DEBUG] After loop, final selectedTree: ${finalSelectedTreeName} (was ${previousSelectedTreeName}). ClickedOnTree: ${clickedOnTree}`);
+
+        if (clickedOnTree && selectedTree) {
+            // Pan only if the selection actually changed or if it's a re-click on the selected tree
+            // and we decide re-clicking should also pan (current logic will pan on re-click if it breaks from the first if block)
+            // The current logic will pan if clickedOnTree is true and selectedTree is not null.
+            console.log(`[DEBUG] Panning to selected tree: ${selectedTree.config.name}`);
+            panToTree(selectedTree); 
+        } else if (!clickedOnTree) {
+            console.log("[DEBUG] Click was not on any tree. No pan action.");
+        }
+        
+        console.log("[DEBUG] Calling updateButtonStates().");
+        updateButtonStates(); 
+        // console.log("[DEBUG] handleCanvasClick finished."); // For tracing end
+    }
+
+    function panToTree(tree) {
+        if (!tree) return;
+
+        // Calculate the target center point of the tree in world coordinates.
+        // Let's center on the middle of the trunk horizontally (tree.x)
+        // and vertically on the mid-height of the trunk (tree.y - tree.height / 2).
+        const targetWorldX = tree.x;
+        const targetWorldY = tree.y - tree.height / 2;
+
+        // Calculate the desired panX and panY to bring this world point to the center of the canvas view.
+        // targetPanX = canvas.width / 2 - worldPointX * zoomLevel
+        // targetPanY = canvas.height / 2 - worldPointY * zoomLevel
+        panX = canvas.width / 2 - targetWorldX * zoomLevel;
+        panY = canvas.height / 2 - targetWorldY * zoomLevel;
+
+        console.log(`Panned to tree: ${tree.config.name}. New panX: ${panX}, panY: ${panY}`);
+        // The gameLoop will handle redrawing with the new panX and panY.
+        // If immediate redraw is needed and gameLoop isn't fast enough, uncomment:
+        // drawGame(); 
+    }
 
     canvas.addEventListener('mouseleave', () => { // Stop panning if mouse leaves canvas
         if (isPanning) {
