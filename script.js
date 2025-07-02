@@ -1,3 +1,5 @@
+const CLICK_PADDING = 10; // Padding for tree click area
+
 document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d');
@@ -736,10 +738,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Create the first tree
         if (trees.length === 0) {
-            const initialTreeX = canvas.width / 2; // X can still be canvas-relative for initial placement
-            const initialTreeY = WORLD_TREE_BASE_Y; // Use the new world coordinate
+            // Calculate initial X position in screen coordinates (e.g., center of the canvas)
+            const initialScreenX = canvas.width / 2;
+            // Convert screen coordinate to world coordinate
+            const initialWorldX = (initialScreenX - panX) / zoomLevel;
+            const initialTreeY = WORLD_TREE_BASE_Y; // Y is already a world coordinate
+
             // Use the first configuration from the availableTreeConfigs array
-            const firstTree = new Tree(initialTreeX, initialTreeY, availableTreeConfigs[0]);
+            const firstTree = new Tree(initialWorldX, initialTreeY, availableTreeConfigs[0]);
             trees.push(firstTree);
             selectedTree = firstTree; // Select the first tree
             selectedTree.isSelected = true;
@@ -918,7 +924,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         // Update and draw game objects (trees, etc.)
-        trees.forEach(tree => tree.draw());
+        trees.forEach(tree => {
+            tree.draw();
+
+            // --- Debug Clickable Area Outline Removed ---
+            // if (true) { // Set to true to always show, or add a debug flag
+            //     const minClickX = tree.x - tree.width / 2 - CLICK_PADDING;
+            //     const maxClickX = tree.x + tree.width / 2 - CLICK_PADDING;
+            //     const treeTopY = tree.y - tree.height;
+            //     const treeBaseY = tree.y;
+            //
+            //     ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)'; // Semi-transparent red
+            //     ctx.lineWidth = 1 / zoomLevel; // Keep line width consistent regardless of zoom
+            //     ctx.beginPath(); // Start a new path for the rectangle
+            //     ctx.rect(minClickX, treeTopY, (maxClickX - minClickX), (treeBaseY - treeTopY));
+            //     ctx.stroke();
+            //     ctx.lineWidth = 1; // Reset line width if it was changed by other drawings
+            // }
+            // --- End Debug Drawing ---
+        });
 
         ctx.restore(); // Restore to pre-zoom/pan state (identity transform)
     }
@@ -976,14 +1000,17 @@ document.addEventListener('DOMContentLoaded', () => {
             parentTree.fruitObjects.pop(); 
             parentTree.fruits = parentTree.fruitObjects.length; 
 
-            const newX = Math.random() * (canvas.width - 60) + 30; // Random X, away from edges
-            const newY = WORLD_TREE_BASE_Y; // Base of the trunk using the world coordinate
+            // Calculate new X position in screen coordinates (e.g., random position on screen)
+            const newScreenX = Math.random() * (canvas.width - 60) + 30; // Random X, away from edges
+            // Convert screen coordinate to world coordinate
+            const newWorldX = (newScreenX - panX) / zoomLevel;
+            const newY = WORLD_TREE_BASE_Y; // Y is already a world coordinate
 
             // Cycle to the next configuration for the new tree
             currentConfigIndex = (currentConfigIndex + 1) % availableTreeConfigs.length;
             const selectedConfig = availableTreeConfigs[currentConfigIndex];
 
-            const newTree = new Tree(newX, newY, selectedConfig);
+            const newTree = new Tree(newWorldX, newY, selectedConfig);
             trees.push(newTree);
 
             if (selectedTree) {
@@ -1048,6 +1075,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let clickStartMouseY = 0;
     const CLICK_THRESHOLD_MS = 200; // Max time for a click
     const CLICK_MOVE_THRESHOLD_PX = 5; // Max movement for a click
+    // CLICK_PADDING is now a global constant defined at the top of the file
 
     canvas.addEventListener('mousedown', (e) => {
         // Check if the click is on the canvas itself, not UI elements if they were overlaid
@@ -1091,16 +1119,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function handleCanvasClick(clientX, clientY) {
-        console.log(`[DEBUG] handleCanvasClick invoked. clientX: ${clientX}, clientY: ${clientY}`);
         const rect = canvas.getBoundingClientRect();
         const canvasX = clientX - rect.left;
         const canvasY = clientY - rect.top;
-        console.log(`[DEBUG] canvasX: ${canvasX.toFixed(2)}, canvasY: ${canvasY.toFixed(2)}`);
-        console.log(`[DEBUG] Current panX: ${panX.toFixed(2)}, panY: ${panY.toFixed(2)}, zoomLevel: ${zoomLevel.toFixed(2)}`);
-
         const worldX = (canvasX - panX) / zoomLevel;
         const worldY = (canvasY - panY) / zoomLevel;
-        console.log(`[DEBUG] Calculated worldX: ${worldX.toFixed(2)}, worldY: ${worldY.toFixed(2)}`);
+
+        // --- Detailed Click Debug Logging Removed ---
+        // console.log('--- Click Debug ---');
+        // console.log(`e.clientX: ${clientX.toFixed(2)}`);
+        // console.log(`rect.left: ${rect.left.toFixed(2)}`);
+        // console.log(`canvasX (clientX - rect.left): ${canvasX.toFixed(2)}`);
+        // console.log(`panX: ${panX.toFixed(2)}`);
+        // console.log(`zoomLevel: ${zoomLevel.toFixed(2)}`);
+        // console.log(`worldX ((canvasX - panX) / zoomLevel): ${worldX.toFixed(2)}`);
+        // console.log(`canvasY: ${canvasY.toFixed(2)}, worldY: ${worldY.toFixed(2)}`); // Also log Y for context
+        // console.log('-------------------');
+
+        // Original debug logs, can be kept or removed if redundant with new logging
+        // console.log(`[DEBUG] handleCanvasClick invoked. clientX: ${clientX}, clientY: ${clientY}`);
+        // console.log(`[DEBUG] canvasX: ${canvasX.toFixed(2)}, canvasY: ${canvasY.toFixed(2)}`);
+        console.log(`[DEBUG] Current panX: ${panX.toFixed(2)}, panY: ${panY.toFixed(2)}, zoomLevel: ${zoomLevel.toFixed(2)}`); // Kept this one for general pan/zoom state on click
+        console.log(`[DEBUG] Calculated worldX: ${worldX.toFixed(2)}, worldY: ${worldY.toFixed(2)}`); // Kept this one for click world coords
 
         let clickedOnTree = false;
         const previousSelectedTreeName = selectedTree ? selectedTree.config.name : 'null';
@@ -1111,11 +1151,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const treeName = tree.config.name || `Tree-${i}`; // Fallback name for logging
             console.log(`[DEBUG] Checking tree [${i}] (${treeName}): X=${tree.x.toFixed(2)}, Y=${tree.y.toFixed(2)}, W=${tree.width.toFixed(2)}, H=${tree.height.toFixed(2)}, isSelected=${tree.isSelected}`);
 
-            const minClickX = tree.x - tree.width / 2;
-            const maxClickX = tree.x + tree.width / 2;
+            // Adjust clickable area width: add CLICK_PADDING padding on each side
+            const minClickX = tree.x - tree.width / 2 - CLICK_PADDING;
+            const maxClickX = tree.x + tree.width / 2 + CLICK_PADDING;
             const treeTopY = tree.y - tree.height; // Y decreases upwards
             const treeBaseY = tree.y;
-            console.log(`[DEBUG] Tree [${i}] (${treeName}) clickable bounds: X[${minClickX.toFixed(2)} to ${maxClickX.toFixed(2)}], Y[${treeTopY.toFixed(2)} to ${treeBaseY.toFixed(2)}]`);
+            console.log(`[DEBUG] Tree [${i}] (${treeName}) clickable bounds (with padding): X[${minClickX.toFixed(2)} to ${maxClickX.toFixed(2)}], Y[${treeTopY.toFixed(2)} to ${treeBaseY.toFixed(2)}]`);
 
             const isInsideX = worldX >= minClickX && worldX <= maxClickX;
             const isInsideY = worldY >= treeTopY && worldY <= treeBaseY; 
