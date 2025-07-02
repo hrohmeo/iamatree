@@ -173,37 +173,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.isSelected = false; // To mark if the tree is currently selected
         }
 
-        draw() {
-             // Draw trunk (tapered)
-            ctx.fillStyle = this.config.colors.trunk; // Use config color
-            ctx.beginPath();
-            ctx.moveTo(this.x - this.width / 2, this.y); // Bottom-left
-            ctx.lineTo(this.x + this.width / 2, this.y); // Bottom-right
-            ctx.lineTo(this.x, this.y - this.height);    // Top-center
-            ctx.closePath();
-            ctx.fill();
-
-            // 2. Wurzeln zeichnen
-            this.roots.forEach(root => root.draw());
-
-            // 3. Äste selbst zeichnen
-            this.branches.forEach(branch => branch.drawBranchItself());
-
-            // 4. Blätter der Äste zeichnen
-            this.branches.forEach(branch => branch.drawBranchLeaves());
-
-            // 5. Blätter am Stamm zeichnen (Fallback)
-            this.leaves.forEach(leaf => leaf.draw());
-
-            // 6. Früchte zeichnen
-            this.fruitObjects.forEach(fruit => fruit.draw());
-
-            // Glow effect for selected tree's trunk is handled before drawing the trunk.
-            // Reset shadow properties after all components of this tree are drawn,
-            // or more specifically, after the trunk if only it should glow.
-            // For now, let's assume the glow should primarily be on the trunk and reset afterwards.
-        }
-
         // Helper to reset shadow properties
         _resetShadow(context) {
             context.shadowColor = 'transparent';
@@ -1077,6 +1046,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const CLICK_MOVE_THRESHOLD_PX = 5; // Max movement for a click
     // CLICK_PADDING is now a global constant defined at the top of the file
 
+    // Function to check if mouse is over any tree
+    function isMouseOverAnyTree(canvasX, canvasY) {
+        const worldX = (canvasX - panX) / zoomLevel;
+        const worldY = (canvasY - panY) / zoomLevel;
+
+        for (const tree of trees) {
+            const minClickX = tree.x - tree.width / 2 - CLICK_PADDING;
+            const maxClickX = tree.x + tree.width / 2 + CLICK_PADDING;
+            const treeTopY = tree.y - tree.height;
+            const treeBaseY = tree.y;
+
+            if (worldX >= minClickX && worldX <= maxClickX && worldY >= treeTopY && worldY <= treeBaseY) {
+                return true; // Mouse is over this tree
+            }
+        }
+        return false; // Mouse is not over any tree
+    }
+
     canvas.addEventListener('mousedown', (e) => {
         // Check if the click is on the canvas itself, not UI elements if they were overlaid
         isPanning = true; // Assume panning until mouseup
@@ -1096,8 +1083,19 @@ document.addEventListener('DOMContentLoaded', () => {
             panY += dy;
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
-            // drawGame(); // Redraw is implicitly handled by gameLoop
+            // canvas.style.cursor is 'grabbing' during pan, set in mousedown
+        } else {
+            // Update cursor based on hover if not panning
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = e.clientX - rect.left;
+            const canvasY = e.clientY - rect.top;
+            if (isMouseOverAnyTree(canvasX, canvasY)) {
+                canvas.style.cursor = 'pointer';
+            } else {
+                canvas.style.cursor = 'grab'; // Default cursor when not panning and not over a tree
+            }
         }
+        // drawGame(); // Redraw is implicitly handled by gameLoop
     });
 
     canvas.addEventListener('mouseup', (e) => {
@@ -1125,31 +1123,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const worldX = (canvasX - panX) / zoomLevel;
         const worldY = (canvasY - panY) / zoomLevel;
 
-        // --- Detailed Click Debug Logging Removed ---
-        // console.log('--- Click Debug ---');
-        // console.log(`e.clientX: ${clientX.toFixed(2)}`);
-        // console.log(`rect.left: ${rect.left.toFixed(2)}`);
-        // console.log(`canvasX (clientX - rect.left): ${canvasX.toFixed(2)}`);
-        // console.log(`panX: ${panX.toFixed(2)}`);
-        // console.log(`zoomLevel: ${zoomLevel.toFixed(2)}`);
-        // console.log(`worldX ((canvasX - panX) / zoomLevel): ${worldX.toFixed(2)}`);
-        // console.log(`canvasY: ${canvasY.toFixed(2)}, worldY: ${worldY.toFixed(2)}`); // Also log Y for context
-        // console.log('-------------------');
-
+        console.log(`[Click Debug] clientX: ${clientX}, rect.left: ${rect.left.toFixed(2)}, canvasX: ${canvasX.toFixed(2)}`);
+        console.log(`[Click Debug] panX: ${panX.toFixed(2)}, zoomLevel: ${zoomLevel.toFixed(2)}, calculated worldX: ${worldX.toFixed(2)}`);
         // Original debug logs, can be kept or removed if redundant with new logging
         // console.log(`[DEBUG] handleCanvasClick invoked. clientX: ${clientX}, clientY: ${clientY}`);
         // console.log(`[DEBUG] canvasX: ${canvasX.toFixed(2)}, canvasY: ${canvasY.toFixed(2)}`);
-        console.log(`[DEBUG] Current panX: ${panX.toFixed(2)}, panY: ${panY.toFixed(2)}, zoomLevel: ${zoomLevel.toFixed(2)}`); // Kept this one for general pan/zoom state on click
-        console.log(`[DEBUG] Calculated worldX: ${worldX.toFixed(2)}, worldY: ${worldY.toFixed(2)}`); // Kept this one for click world coords
+        // console.log(`[DEBUG] Current panX: ${panX.toFixed(2)}, panY: ${panY.toFixed(2)}, zoomLevel: ${zoomLevel.toFixed(2)}`); // Kept this one for general pan/zoom state on click
+        // console.log(`[DEBUG] Calculated worldX: ${worldX.toFixed(2)}, worldY: ${worldY.toFixed(2)}`); // Kept this one for click world coords
 
         let clickedOnTree = false;
         const previousSelectedTreeName = selectedTree ? selectedTree.config.name : 'null';
-        console.log(`[DEBUG] Before loop, current selectedTree: ${previousSelectedTreeName}`);
+        // console.log(`[DEBUG] Before loop, current selectedTree: ${previousSelectedTreeName}`);
 
         for (let i = trees.length - 1; i >= 0; i--) {
             const tree = trees[i];
-            const treeName = tree.config.name || `Tree-${i}`; // Fallback name for logging
-            console.log(`[DEBUG] Checking tree [${i}] (${treeName}): X=${tree.x.toFixed(2)}, Y=${tree.y.toFixed(2)}, W=${tree.width.toFixed(2)}, H=${tree.height.toFixed(2)}, isSelected=${tree.isSelected}`);
+            // const treeName = tree.config.name || `Tree-${i}`; // Fallback name for logging
+            // console.log(`[DEBUG] Checking tree [${i}] (${treeName}): X=${tree.x.toFixed(2)}, Y=${tree.y.toFixed(2)}, W=${tree.width.toFixed(2)}, H=${tree.height.toFixed(2)}, isSelected=${tree.isSelected}`);
+            console.log(`[Click Debug] Tree [${i}]: tree.x: ${tree.x.toFixed(2)}, tree.width: ${tree.width.toFixed(2)}`);
+
 
             // Adjust clickable area width: add CLICK_PADDING padding on each side
             const minClickX = tree.x - tree.width / 2 - CLICK_PADDING;
@@ -1159,48 +1150,41 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(`[DEBUG] Tree [${i}] (${treeName}) clickable bounds (with padding): X[${minClickX.toFixed(2)} to ${maxClickX.toFixed(2)}], Y[${treeTopY.toFixed(2)} to ${treeBaseY.toFixed(2)}]`);
 
             const isInsideX = worldX >= minClickX && worldX <= maxClickX;
-            const isInsideY = worldY >= treeTopY && worldY <= treeBaseY; 
+            const isInsideY = worldY >= treeTopY && worldY <= treeBaseY;
 
             if (isInsideX && isInsideY) {
-                console.log(`[DEBUG] Click IS INSIDE tree [${i}] (${treeName})`);
+                const treeName = tree.config.name || `Tree-${i}`; // Define treeName here for logging
+                console.log(`[Click Debug] Click INSIDE tree [${i}] (${treeName}) at worldX: ${worldX.toFixed(2)} (Tree center: ${tree.x.toFixed(2)})`);
                 clickedOnTree = true;
 
                 if (selectedTree === tree) {
-                    console.log(`[DEBUG] Re-clicked the currently selected tree [${i}] (${treeName}). No change in selection.`);
-                    // No actual change in selection, but we might still want to pan or do something.
-                    // For now, just break as the correct tree is already selected.
+                    // console.log(`[DEBUG] Re-clicked the currently selected tree [${i}] (${treeName}). No change in selection.`);
                 } else {
-                    console.log(`[DEBUG] Clicked on a DIFFERENT tree [${i}] (${treeName}). Switching selection from: ${selectedTree ? selectedTree.config.name : 'null'}`);
+                    // console.log(`[DEBUG] Clicked on a DIFFERENT tree [${i}] (${treeName}). Switching selection from: ${selectedTree ? selectedTree.config.name : 'null'}`);
                     if (selectedTree) {
-                        console.log(`[DEBUG] Deselecting old tree: ${selectedTree.config.name}, setting its isSelected to false.`);
+                        // console.log(`[DEBUG] Deselecting old tree: ${selectedTree.config.name}, setting its isSelected to false.`);
                         selectedTree.isSelected = false;
                     }
                     tree.isSelected = true;
                     selectedTree = tree;
-                    console.log(`[DEBUG] NEW selectedTree is now [${i}] (${selectedTree.config.name}). Its isSelected is now: ${selectedTree.isSelected}`);
+                    // console.log(`[DEBUG] NEW selectedTree is now [${i}] (${selectedTree.config.name}). Its isSelected is now: ${selectedTree.isSelected}`);
                 }
-                break; // Stop checking other trees once the topmost clicked tree is found and processed.
-            } else {
-                // console.log(`[DEBUG] Click is OUTSIDE tree [${i}] (${treeName})`); // Can be noisy, enable if needed
+                break;
             }
         }
 
-        const finalSelectedTreeName = selectedTree ? selectedTree.config.name : 'null';
-        console.log(`[DEBUG] After loop, final selectedTree: ${finalSelectedTreeName} (was ${previousSelectedTreeName}). ClickedOnTree: ${clickedOnTree}`);
+        // const finalSelectedTreeName = selectedTree ? selectedTree.config.name : 'null';
+        // console.log(`[DEBUG] After loop, final selectedTree: ${finalSelectedTreeName} (was ${previousSelectedTreeName}). ClickedOnTree: ${clickedOnTree}`);
 
         if (clickedOnTree && selectedTree) {
-            // Pan only if the selection actually changed or if it's a re-click on the selected tree
-            // and we decide re-clicking should also pan (current logic will pan on re-click if it breaks from the first if block)
-            // The current logic will pan if clickedOnTree is true and selectedTree is not null.
-            console.log(`[DEBUG] Panning to selected tree: ${selectedTree.config.name}`);
-            panToTree(selectedTree); 
+            // console.log(`[DEBUG] Panning to selected tree: ${selectedTree.config.name}`);
+            panToTree(selectedTree);
         } else if (!clickedOnTree) {
-            console.log("[DEBUG] Click was not on any tree. No pan action.");
+            // console.log("[DEBUG] Click was not on any tree. No pan action.");
         }
         
-        console.log("[DEBUG] Calling updateButtonStates().");
-        updateButtonStates(); 
-        // console.log("[DEBUG] handleCanvasClick finished."); // For tracing end
+        // console.log("[DEBUG] Calling updateButtonStates().");
+        updateButtonStates();
     }
 
     function panToTree(tree) {
