@@ -1076,7 +1076,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const CLICK_THRESHOLD_MS = 200; // Max time for a click
     const CLICK_MOVE_THRESHOLD_PX = 5; // Max movement for a click
     // CLICK_PADDING is now a global constant defined at the top of the file
+	
+	// Function to check if mouse is over any tree
+    function isMouseOverAnyTree(canvasX, canvasY) {
+        const worldX = (canvasX - panX) / zoomLevel;
+        const worldY = (canvasY - panY) / zoomLevel;
 
+        for (const tree of trees) {
+            const minClickX = tree.x - tree.width / 2 - CLICK_PADDING;
+            const maxClickX = tree.x + tree.width / 2 + CLICK_PADDING;
+            const treeTopY = tree.y - tree.height;
+            const treeBaseY = tree.y;
+
+            if (worldX >= minClickX && worldX <= maxClickX && worldY >= treeTopY && worldY <= treeBaseY) {
+                return true; // Mouse is over this tree
+            }
+        }
+        return false; // Mouse is not over any tree
+    }
+
+    
     canvas.addEventListener('mousedown', (e) => {
         // Check if the click is on the canvas itself, not UI elements if they were overlaid
         isPanning = true; // Assume panning until mouseup
@@ -1097,6 +1116,16 @@ document.addEventListener('DOMContentLoaded', () => {
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
             // drawGame(); // Redraw is implicitly handled by gameLoop
+			} else {
+            // Update cursor based on hover if not panning
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = e.clientX - rect.left;
+            const canvasY = e.clientY - rect.top;
+            if (isMouseOverAnyTree(canvasX, canvasY)) {
+                canvas.style.cursor = 'pointer';
+            } else {
+                canvas.style.cursor = 'grab'; // Default cursor when not panning and not over a tree
+            }
         }
     });
 
