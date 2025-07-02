@@ -1,10 +1,19 @@
-html, body {
+html {
+    height: 100%;
+    overflow-y: scroll; /* Force vertical scrollbar */
+}
+
+body {
     height: 100%;
     margin: 0;
     padding: 0;
-    overflow: hidden; /* Prevent scrollbars from appearing for the page itself */
+    overflow-x: hidden; /* Prevent horizontal scroll on body if content is too wide */
     font-family: sans-serif;
     background-color: #f0f0f0; /* Background for any small slivers not covered by main */
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
 }
 
 main {
@@ -25,15 +34,16 @@ main {
     background-color: #e0f2e0; /* Light green background for the game area */
     display: flex; /* To center canvas if it has fixed size, or ensure it fills */
     justify-content: center;
-    align-items: center;
+    align-items: flex-start; /* Changed from center to flex-start */
     border-right: 1px solid #ccc; /* Optional: a separator line */
+    overflow: hidden; 
 }
 
 #game-canvas {
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: contain; /* Ensure canvas content scales nicely if it has an intrinsic size */
+    /* object-fit: contain; /* Ensure canvas content scales nicely if it has an intrinsic size */
 }
 
 #ui-container {
