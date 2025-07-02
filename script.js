@@ -1,9 +1,9 @@
 const CLICK_PADDING = 10; // Padding for tree click area
 
 document.addEventListener('DOMContentLoaded', () => {
+	
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d');
-
     // --- Tree Configurations ---
     const defaultTreeConfig = {
         name: "DefaultTree",
@@ -144,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const backgroundImage = new Image();
     backgroundImage.src = 'treebg.png'; // Assume treebg.png is in the same directory
     let backgroundImageLoaded = false;
-
+	resizeCanvas();
     backgroundImage.onload = () => {
         backgroundImageLoaded = true;
         drawGame(); // Redraw the game once the image is loaded
@@ -735,6 +735,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Game Setup
     function initializeGame() {
         resizeCanvas(); // Call resizeCanvas first to set correct canvas dimensions
+		console.log(`canvas.width=${canvas.width}, canvas.clientWidth=${canvas.clientWidth}`);
+console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.clientHeight}`);
 
         // Create the first tree
         if (trees.length === 0) {
@@ -751,17 +753,20 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedTree.isSelected = true;
             currentConfigIndex = 0; // Reset index for subsequent plantings
             panToTree(selectedTree); // Center the initial tree
+			selectedTree.x = (canvas.width / 2 - panX) / zoomLevel;
         }
         updateButtonStates(); // Centralized button state management (will now use selectedTree)
         gameLoop();
     }
 
-    function resizeCanvas() {
-        const gameContainer = document.getElementById('game-container');
-        canvas.width = gameContainer.clientWidth;
-        canvas.height = gameContainer.clientHeight;
-        drawGame(); // Redraw everything after resize
-    }
+	function resizeCanvas() {
+		canvas.width = canvas.clientWidth;
+		canvas.height = canvas.clientHeight;
+		drawGame();
+		if (selectedTree) {
+			panToTree(selectedTree);
+		}
+	}
 
     window.addEventListener('resize', resizeCanvas);
 
