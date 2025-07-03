@@ -990,19 +990,27 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
 
     // Event Listeners for UI
     growHeightButton.addEventListener('click', () => {
-        if (selectedTree && availableNutrients > 0) {
-            const inputAmount = parseInt(growHeightInput.value, 10) || 1;
-            // For height, let's assume 1 nutrient cost per click, regardless of inputAmount,
-            // as height growth is a single operation with a magnitude.
-            // If cost should scale with inputAmount, this logic needs adjustment.
-            // For now, 1 click = 1 nutrient.
-            availableNutrients--;
-            const growthAmount = inputAmount * 10; // Scale factor of 10
-            selectedTree.growHeight(growthAmount);
-            updateScore(); // Also calls updateButtonStates
-            updateNutrientsDisplay();
-        } else if (availableNutrients <= 0) {
-            console.log("Not enough nutrients to grow height.");
+        if (selectedTree) {
+            const requestedOperations = parseInt(growHeightInput.value, 10) || 1;
+            if (requestedOperations <= 0) return; // No action if input is zero or negative
+
+            const numOperations = Math.min(requestedOperations, availableNutrients);
+
+            if (numOperations > 0) {
+                availableNutrients -= numOperations;
+                const growthAmount = numOperations * 10; // Each operation gives 10 height
+                selectedTree.growHeight(growthAmount);
+                updateScore(); // Also calls updateButtonStates
+                updateNutrientsDisplay();
+
+                if (requestedOperations > numOperations) {
+                    console.log(`Not enough nutrients for full height growth. Grew by ${growthAmount} using ${numOperations} nutrients.`);
+                }
+            } else {
+                console.log("Not enough nutrients to grow height, or requested amount was zero.");
+            }
+        } else {
+            console.log("No tree selected to grow height.");
         }
     });
 
