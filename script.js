@@ -70,6 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
         leafPlacementRange: { min: 0.2, max: 1.0 },
         // Fruit placement on branch
         fruitPlacementRange: { min: 0.2, max: 0.8 },
+        leafOutStartMonth: 2, // March (0-indexed)
+        leafOutEndMonth: 5,   // June
     };
 
     const willowLikeConfig = {
@@ -118,6 +120,8 @@ document.addEventListener('DOMContentLoaded', () => {
         minRootLengthForSubRooting: 6,
         leafPlacementRange: { min: 0.1, max: 1.0 },
         fruitPlacementRange: { min: 0.1, max: 0.9 },
+        leafOutStartMonth: 3, // April
+        leafOutEndMonth: 6,   // July
     };
 
     // Array of available configurations
@@ -297,6 +301,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         addLeaf(size, color) { // Parameters will be passed from button click / specific logic
+            // Check month restrictions
+            if (currentMonthIndex < this.config.leafOutStartMonth || currentMonthIndex > this.config.leafOutEndMonth) {
+                console.log(`Cannot add leaf: Only allowed between ${months[this.config.leafOutStartMonth]} and ${months[this.config.leafOutEndMonth]}. Current month: ${months[currentMonthIndex]}.`);
+                return false; // Indicate failure
+            }
+
             const allBranches = this.getAllBranches();
             if (allBranches.length > 0) {
                 const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
@@ -304,8 +314,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const leafSize = size !== undefined ? size : (this.config.leafSize.min + Math.random() * (this.config.leafSize.max - this.config.leafSize.min));
                 const leafColor = color !== undefined ? color : this.config.colors.leaf;
                 randomBranch.addLeaf(leafSize, leafColor);
+                return true; // Indicate success
             } else {
                 console.log('Cannot add leaf: Tree has no branches.');
+                return false; // Indicate failure
             }
         }
 
@@ -571,6 +583,10 @@ document.addEventListener('DOMContentLoaded', () => {
             this.y = y;
             this.size = size; // Diameter of the circle
             this.color = color;
+        }
+
+        change_color(new_color) {
+            this.color = new_color;
         }
 
         draw() {
@@ -1074,20 +1090,42 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
     growLeavesButton.addEventListener('click', () => {
         if (selectedTree) {
             let count = parseInt(growLeavesInput.value, 10) || 1;
-            let leavesAdded = 0;
+            let leavesSuccessfullyAdded = 0;
+            if (count <= 0) {
+                console.log("Number of leaves to add must be positive.");
+                return;
+            }
+
             for (let i = 0; i < count; i++) {
-                if (availableNutrients > 0) {
-                    availableNutrients--;
-                    selectedTree.addLeaf(10 + Math.random() * 5); // Random leaf size for each
-                    leavesAdded++;
-                } else {
+                if (availableNutrients <= 0) {
                     console.log("Not enough nutrients to add more leaves.");
                     break;
                 }
+
+                // Attempt to add a leaf. addLeaf now returns true for success, false for failure.
+                // Size and color are defaults from addLeaf method if not specified.
+                if (selectedTree.addLeaf()) {
+                    availableNutrients--; // Consume nutrient only if leaf was successfully added
+                    leavesSuccessfullyAdded++;
+                } else {
+                    // addLeaf already logs the reason for failure (e.g., month restriction, no branches)
+                    // If it failed due to month/branch restrictions, we don't want to stop trying for the remaining count
+                    // unless nutrients run out. If it failed but nutrients were available, the loop continues.
+                    // No nutrient consumed in this case.
+                    console.log(`Attempt to add leaf ${i+1} failed. Checking next attempt if count > 1 and nutrients available.`);
+                }
             }
-            if (leavesAdded > 0) {
+
+            if (leavesSuccessfullyAdded > 0) {
+                console.log(`${leavesSuccessfullyAdded} leaves added successfully.`);
                 updateScore(); // Also calls updateButtonStates
                 updateNutrientsDisplay();
+            } else {
+                console.log("No leaves were added in this operation.");
+                // Still update displays/buttons in case nutrient check caused an early exit
+                // or if all attempts failed for other reasons.
+                updateNutrientsDisplay();
+                updateButtonStates();
             }
         }
     });
@@ -1518,7 +1556,46 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
         availableNutrients += 1; // Gain 1 nutrient per turn
         updateNutrientsDisplay();
         updateButtonStates(); // Update button states as nutrients have changed
-        // Future: Add logic for resource regeneration or other end-of-turn effects
+
+        // Autumn seasonal changes
+        trees.forEach(tree => {
+            const allBranches = tree.getAllBranches();
+            if (currentMonthIndex === 8) { // September
+                console.log(`Autumn: September - ${tree.config.name} leaves turning yellow.`);
+                allBranches.forEach(branch => {
+                    branch.leaves.forEach(leaf => {
+                        if (Math.random() < 0.5) {
+                            leaf.change_color("yellow");
+                        }
+                    });
+                });
+            } else if (currentMonthIndex === 9) { // October
+                console.log(`Autumn: October - ${tree.config.name} yellow leaves falling, rest turning yellow.`);
+                allBranches.forEach(branch => {
+                    // Remove leaves that were already yellow
+                    branch.leaves = branch.leaves.filter(leaf => {
+                        if (leaf.color === "yellow") {
+                            // console.log("A yellow leaf fell."); // Optional: too noisy
+                            return false; // Remove
+                        }
+                        return true; // Keep
+                    });
+                    // Change remaining green leaves to yellow
+                    branch.leaves.forEach(leaf => {
+                        if (leaf.color === "green") { // Ensure we only change green leaves
+                            leaf.change_color("yellow");
+                        }
+                    });
+                });
+            } else if (currentMonthIndex === 10) { // November
+                console.log(`Autumn: November - ${tree.config.name} all remaining leaves falling.`);
+                allBranches.forEach(branch => {
+                    branch.leaves = [];
+                });
+            }
+        });
+        // End of seasonal changes
+
         console.log(`Turn ended. New month: ${months[currentMonthIndex]}. Nutrients: ${availableNutrients}`);
     });
 
