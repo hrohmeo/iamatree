@@ -54,8 +54,8 @@ document.addEventListener('DOMContentLoaded', () => {
             max: 12,
         },
         leafSize: { // Example values for leaves added via tree.addLeaf()
-            min: 8, // Base size, can be randomized further in addLeaf
-            max: 15,
+            min: 16, // Doubled from 8
+            max: 30, // Doubled from 15
         },
         // Determines how much the trunk width increases per unit of height increase
         trunkWidthGrowthFactor: 0.05,
@@ -110,8 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
             max: 10,
         },
         leafSize: {
-            min: 10, // Willows often have longer, thinner leaves (simulated by size here)
-            max: 18,
+            min: 20, // Doubled from 10
+            max: 36, // Doubled from 18
         },
         trunkWidthGrowthFactor: 0.04,
         maxChildBranchesPerBranch: 3, // More branching
@@ -560,7 +560,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         }
 
-        addLeaf(size = 8, color = 'limegreen') {
+        addLeaf(size, color) { // Removed default size, will use config. color can still be passed or default.
+            const configLeafSize = this.parentTree.config.leafSize;
+            const leafSize = size !== undefined ? size : (configLeafSize.min + Math.random() * (configLeafSize.max - configLeafSize.min));
+            const leafColor = color !== undefined ? color : this.parentTree.config.colors.leaf;
+
+
             const placementMin = this.parentTree.config.leafPlacementRange.min;
             const placementMax = this.parentTree.config.leafPlacementRange.max;
             const positionOnBranch = placementMin + Math.random() * (placementMax - placementMin);
@@ -568,22 +573,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const leafBaseX = this.startX + Math.cos(this.angle) * this.length * positionOnBranch;
             const leafBaseY = this.startY + Math.sin(this.angle) * this.length * positionOnBranch;
 
-            const perpendicularOffset = (Math.random() - 0.5) * size * 3;
+            // Perpendicular offset should also scale with the new leafSize for better visual balance
+            const perpendicularOffset = (Math.random() - 0.5) * leafSize * 1.5; // Adjusted multiplier from 3 to 1.5 due to larger base size
             const leafX = leafBaseX + Math.sin(this.angle) * perpendicularOffset;
             const leafY = leafBaseY - Math.cos(this.angle) * perpendicularOffset;
 
-            this.leaves.push(new Leaf(leafX, leafY, size, color)); // Color is passed in
+            // Pass the branch's angle to the Leaf constructor
+            this.leaves.push(new Leaf(leafX, leafY, leafSize, leafColor, this.angle)); 
             console.log('Leaf added to branch');
         }
     }
 
     class Leaf {
-        constructor(x, y, size, color) {
-            this.x = x;
+        constructor(x, y, size, color, branchAngle) { // Added branchAngle
             this.x = x;
             this.y = y;
             this.size = size; // Diameter of the circle
             this.color = color;
+            this.branchAngle = branchAngle; // Store the branch angle
             // Store random direction for gradient for consistency
             this.gradientAngle = Math.random() * 2 * Math.PI;
         }
@@ -634,11 +641,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         draw() {
-            const radius = this.size / 2;
-            const x0 = this.x - Math.cos(this.gradientAngle) * radius;
-            const y0 = this.y - Math.sin(this.gradientAngle) * radius;
-            const x1 = this.x + Math.cos(this.gradientAngle) * radius;
-            const y1 = this.y + Math.sin(this.gradientAngle) * radius;
+            // Define gradient in local coordinates (leaf drawn with base at 0,0, tip pointing up local -Y)
+            const radius = this.size / 2; // Use half of overall size for gradient extent
+            
+            // The leaf's main axis is along its local Y-axis (from 0 to -length).
+            // The gradientAngle is a random angle. We want the gradient line to pass through
+            // the center of the leaf's body. The leaf's body center is roughly at (0, -length/2).
+            // Let's define the gradient relative to the leaf's center point in its local coordinate system.
+            // The leaf's drawn length is `this.size`. Its center point is at `(0, -this.size / 2)` in local space.
+            const localCenterY = -this.size / 2;
+
+            // Calculate gradient line endpoints relative to this local center (0, localCenterY)
+            const x0 = 0 - Math.cos(this.gradientAngle) * radius; // Centered at local X=0
+            const y0 = localCenterY - Math.sin(this.gradientAngle) * radius;
+            const x1 = 0 + Math.cos(this.gradientAngle) * radius; // Centered at local X=0
+            const y1 = localCenterY + Math.sin(this.gradientAngle) * radius;
 
             const gradient = ctx.createLinearGradient(x0, y0, x1, y1);
 
@@ -662,9 +679,60 @@ document.addEventListener('DOMContentLoaded', () => {
             gradient.addColorStop(1, color2);
 
             ctx.fillStyle = gradient;
+
+            ctx.save(); // Save the current canvas state
+
+            // Translate to the leaf's position (this.x, this.y)
+            ctx.translate(this.x, this.y);
+
+            // Rotate the canvas. Add Math.PI / 4 for 45 degrees.
+            // Branch angles: 0 is right, -PI/2 is up.
+            // A positive rotation in canvas is clockwise.
+            // To point the leaf "outward" at 45 deg from branch:
+            // If branch is pointing up (-PI/2), leaf should be -PI/2 + PI/4 = -PI/4 (upper right) OR -PI/2 - PI/4 = -3PI/4 (upper left)
+            // Let's make it consistently one side, e.g., 45 degrees clockwise relative to the branch vector.
+            // So, rotation will be this.branchAngle + Math.PI / 4.
+            ctx.rotate(this.branchAngle + Math.PI / 4);
+
             ctx.beginPath();
-            ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
+
+            // Draw the leaf shape relative to (0,0) because we've translated the context.
+            // The tip of the leaf will point "up" in the rotated coordinate system.
+            const size = this.size; // Overall length of the leaf
+            const width = size / 2; // Width of the leaf at its widest point
+            const length = size;    // Full length from base to tip
+
+            // Base of the leaf is now (0,0)
+            const baseX = 0;
+            const baseY = 0;
+
+            // Tip of the leaf (pointy part)
+            const tipX = baseX;      // Stays on the new Y-axis
+            const tipY = baseY - length; // "Up" along the new Y-axis
+
+            // Widest points of the leaf (oval part)
+            const midY = baseY - length / 2;
+            const leftX = baseX - width / 2;
+            const rightX = baseX + width / 2;
+
+            // Control points
+            const controlPointBaseOffsetX = width / 2;
+
+            ctx.moveTo(baseX, baseY); // Start at the base of the leaf stem (now 0,0)
+
+            // Curve to the widest point on the left
+            ctx.quadraticCurveTo(baseX - controlPointBaseOffsetX, baseY - length / 4, leftX, midY);
+            // Curve from the widest point on the left to the tip
+            ctx.quadraticCurveTo(baseX - width / 4, baseY - length * 0.75, tipX, tipY);
+            // Curve from the tip to the widest point on the right
+            ctx.quadraticCurveTo(baseX + width / 4, baseY - length * 0.75, rightX, midY);
+            // Curve from the widest point on the right back to the base
+            ctx.quadraticCurveTo(baseX + controlPointBaseOffsetX, baseY - length / 4, baseX, baseY);
+
+            ctx.closePath();
             ctx.fill();
+
+            ctx.restore(); // Restore the canvas state
         }
     }
 
