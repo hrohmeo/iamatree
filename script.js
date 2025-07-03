@@ -221,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this._resetShadow(ctx);
 
             if (this.isSelected && trees.length > 1) {
-                ctx.shadowColor = 'yellow'; // Glow color
+                ctx.shadowColor = 'white'; // Glow color
                 ctx.shadowBlur = 15;       // Glow size/intensity
                 // Ensure shadowOffset is 0 if not set elsewhere, good practice
                 ctx.shadowOffsetX = 0;
