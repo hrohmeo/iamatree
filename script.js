@@ -795,16 +795,21 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
     window.addEventListener('resize', resizeCanvas);
 
     function updateButtonStates() {
+        const noNutrients = availableNutrients <= 0;
+
         if (!selectedTree) { // If no tree is selected
             growHeightButton.disabled = true;
             addBranchButton.disabled = true;
             growLeavesButton.disabled = true;
             produceFruitButton.disabled = true;
-            growRootsButton.disabled = true; // Also disable grow roots if no tree selected
+            growRootsButton.disabled = true;
+            plantNewTreeButton.disabled = true; // Also disable plant new tree if no tree selected initially (though logic below might override)
         } else {
             // Grow Height button
-            growHeightButton.disabled = selectedTree.height >= selectedTree.config.maxHeight;
-            growRootsButton.disabled = false; // Enable if a tree is selected
+            growHeightButton.disabled = noNutrients || selectedTree.height >= selectedTree.config.maxHeight;
+
+            // Grow Roots button - only nutrient check needed beyond having a selected tree
+            growRootsButton.disabled = noNutrients;
 
             // Add Branch button
             const maxAllowedBranches = calculateMaxAllowedBranches(
@@ -816,22 +821,29 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
                 selectedTree.config.branchParams.scalingExponent
             );
             const currentBranches = selectedTree.getAllBranches().length;
-            addBranchButton.disabled = selectedTree.height < selectedTree.config.rules.minHeightForBranches || currentBranches >= maxAllowedBranches;
+            addBranchButton.disabled = noNutrients || selectedTree.height < selectedTree.config.rules.minHeightForBranches || currentBranches >= maxAllowedBranches;
 
             // Grow Leaves button
-            growLeavesButton.disabled = selectedTree.getAllBranches().length === 0;
+            growLeavesButton.disabled = noNutrients || selectedTree.getAllBranches().length === 0;
 
             // Produce fruit button
-            const canProduceFruit = selectedTree.height >= selectedTree.config.rules.minHeightForFruits &&
+            const canProduceFruitConditions = selectedTree.height >= selectedTree.config.rules.minHeightForFruits &&
                 selectedTree.getTotalLeaves() >= selectedTree.config.rules.minLeavesForFruits;
-            produceFruitButton.disabled = !canProduceFruit;
+            produceFruitButton.disabled = noNutrients || !canProduceFruitConditions;
         }
 
-        // Plant new tree button - enabled if ANY tree has fruit, regardless of selection
-        if (trees.some(tree => tree.fruitObjects.length > 0)) {
-            plantNewTreeButton.disabled = false;
-        } else {
-            plantNewTreeButton.disabled = true;
+        // Plant new tree button - enabled if ANY tree has fruit AND nutrients are available
+        const anyTreeHasFruit = trees.some(tree => tree.fruitObjects.length > 0);
+        plantNewTreeButton.disabled = noNutrients || !anyTreeHasFruit;
+
+        // If there's no selected tree, but nutrients are zero, plantNewTreeButton should also be disabled.
+        // The above handles this. If selectedTree is null, noNutrients might still be true, disabling it.
+        // If selectedTree is null and noNutrients is false, it will be disabled by !anyTreeHasFruit if no tree has fruit.
+        // If no tree is selected, most buttons are disabled at the top. We need to ensure plantNewTreeButton follows suit
+        // if it wasn't already covered.
+        if (!selectedTree && plantNewTreeButton) { // plantNewTreeButton might not be defined if HTML is missing
+             // It will be disabled if noNutrients is true OR if !anyTreeHasFruit is true.
+             // If selectedTree is null, the specific tree conditions don't apply, only global ones like nutrients or anyTreeHasFruit.
         }
     }
 
@@ -978,46 +990,98 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
 
     // Event Listeners for UI
     growHeightButton.addEventListener('click', () => {
-        if (selectedTree) {
+        if (selectedTree && availableNutrients > 0) {
             const inputAmount = parseInt(growHeightInput.value, 10) || 1;
+            // For height, let's assume 1 nutrient cost per click, regardless of inputAmount,
+            // as height growth is a single operation with a magnitude.
+            // If cost should scale with inputAmount, this logic needs adjustment.
+            // For now, 1 click = 1 nutrient.
+            availableNutrients--;
             const growthAmount = inputAmount * 10; // Scale factor of 10
             selectedTree.growHeight(growthAmount);
-            updateScore(); 
+            updateScore(); // Also calls updateButtonStates
+            updateNutrientsDisplay();
+        } else if (availableNutrients <= 0) {
+            console.log("Not enough nutrients to grow height.");
         }
     });
 
     growRootsButton.addEventListener('click', () => {
         if (selectedTree) {
-            const count = parseInt(growRootsInput.value, 10) || 1;
+            let count = parseInt(growRootsInput.value, 10) || 1;
+            let rootsAdded = 0;
             for (let i = 0; i < count; i++) {
-                selectedTree.addRoot();
+                if (availableNutrients > 0) {
+                    availableNutrients--;
+                    selectedTree.addRoot();
+                    rootsAdded++;
+                } else {
+                    console.log("Not enough nutrients to add more roots.");
+                    break;
+                }
             }
-            updateScore();
+            if (rootsAdded > 0) {
+                updateScore(); // Also calls updateButtonStates
+                updateNutrientsDisplay();
+            }
         }
     });
 
     growLeavesButton.addEventListener('click', () => {
         if (selectedTree) {
-            const count = parseInt(growLeavesInput.value, 10) || 1;
+            let count = parseInt(growLeavesInput.value, 10) || 1;
+            let leavesAdded = 0;
             for (let i = 0; i < count; i++) {
-                selectedTree.addLeaf(10 + Math.random() * 5); // Random leaf size for each
+                if (availableNutrients > 0) {
+                    availableNutrients--;
+                    selectedTree.addLeaf(10 + Math.random() * 5); // Random leaf size for each
+                    leavesAdded++;
+                } else {
+                    console.log("Not enough nutrients to add more leaves.");
+                    break;
+                }
             }
-            updateScore();
+            if (leavesAdded > 0) {
+                updateScore(); // Also calls updateButtonStates
+                updateNutrientsDisplay();
+            }
         }
     });
 
     produceFruitButton.addEventListener('click', () => {
         if (selectedTree) {
-            const count = parseInt(produceFruitInput.value, 10) || 1;
-            selectedTree.produceFruit(count);
-            updateScore();
+            let count = parseInt(produceFruitInput.value, 10) || 1;
+            let fruitsProduced = 0;
+            // Check general conditions first (height, leaves)
+            if (selectedTree.height < selectedTree.config.rules.minHeightForFruits || selectedTree.getTotalLeaves() < selectedTree.config.rules.minLeavesForFruits) {
+                console.log("Tree cannot produce fruit due to height or leaf count.");
+                updateButtonStates(); // Ensure button state is accurate
+                return;
+            }
+
+            for (let i = 0; i < count; i++) {
+                if (availableNutrients > 0) {
+                    availableNutrients--;
+                    selectedTree.produceFruit(1); // Produce one fruit at a time to check nutrients for each
+                    fruitsProduced++;
+                } else {
+                    console.log("Not enough nutrients to produce more fruit.");
+                    break;
+                }
+            }
+            if (fruitsProduced > 0) {
+                updateScore(); // Also calls updateButtonStates
+                updateNutrientsDisplay();
+            } else {
+                // If no fruits were produced but an attempt was made, ensure buttons are correctly updated
+                // e.g. if nutrients ran out before any could be made.
+                updateButtonStates();
+                updateNutrientsDisplay(); // In case nutrients were available but other conditions failed for all attempts.
+            }
         }
     });
 
     plantNewTreeButton.addEventListener('click', () => {
-        // Planting a new tree can still use a fruit from *any* tree that has one.
-        // However, the user might expect it to come from the *selected* tree if it has fruit.
-        // For now, let's prioritize selectedTree if it has fruit, otherwise find any tree.
         let parentTree = null;
         if (selectedTree && selectedTree.fruitObjects.length > 0) {
             parentTree = selectedTree;
@@ -1025,60 +1089,122 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
             parentTree = trees.find(tree => tree.fruitObjects.length > 0);
         }
         
-        if (parentTree) {
+        if (parentTree && availableNutrients > 0) {
+            availableNutrients--;
             parentTree.fruitObjects.pop(); 
             parentTree.fruits = parentTree.fruitObjects.length; 
 
-            // Calculate new X position in screen coordinates (e.g., random position on screen)
-            const newScreenX = Math.random() * (canvas.width - 60) + 30; // Random X, away from edges
-            // Convert screen coordinate to world coordinate
+            const newScreenX = Math.random() * (canvas.width - 60) + 30;
             const newWorldX = (newScreenX - panX) / zoomLevel;
-            const newY = WORLD_TREE_BASE_Y; // Y is already a world coordinate
+            const newY = WORLD_TREE_BASE_Y;
 
-            // Cycle to the next configuration for the new tree
             currentConfigIndex = (currentConfigIndex + 1) % availableTreeConfigs.length;
             const selectedConfig = availableTreeConfigs[currentConfigIndex];
-
             const newTree = new Tree(newWorldX, newY, selectedConfig);
             trees.push(newTree);
 
             if (selectedTree) {
-                selectedTree.isSelected = false; // Deselect old tree
+                selectedTree.isSelected = false;
             }
-            newTree.isSelected = true; // Select new tree
-            selectedTree = newTree;     // Update selectedTree reference
+            newTree.isSelected = true;
+            selectedTree = newTree;
 
             console.log(`New tree planted with config: ${selectedConfig.name}. It is now selected.`);
-            panToTree(selectedTree);    // Pan to the new tree
-            updateScore();              // This will also call updateButtonStates
-        } else {
+            panToTree(selectedTree);
+            updateScore(); // Also calls updateButtonStates
+            updateNutrientsDisplay();
+        } else if (availableNutrients <= 0) {
+            console.log('Not enough nutrients to plant a new tree.');
+            updateButtonStates(); // Ensure button state is accurate
+        } else if (!parentTree) {
             console.log('No tree has fruit to plant a new one.');
+            // No nutrient change, but button state might need update if it depended on fruit.
+            updateButtonStates();
         }
     });
 
     addBranchButton.addEventListener('click', () => {
         if (!selectedTree) return;
-        const count = parseInt(addBranchInput.value, 10) || 1;
+        let count = parseInt(addBranchInput.value, 10) || 1;
+        let branchesAdded = 0;
 
         for (let i = 0; i < count; i++) {
-            // Decide whether to add a branch to the trunk or to an existing branch
-            // Use config for minHeightForBranches check
-            if (selectedTree.branches.length === 0 || Math.random() < 0.4 || selectedTree.height < selectedTree.config.rules.minHeightForBranches + 20) {
-                // Add to trunk if no branches yet, or 40% chance, or if tree is not much taller than min height for branches
-                selectedTree.addBranch();
-            } else {
-                // Try to add to an existing branch
-                const allBranches = selectedTree.getAllBranches(); // Helper function to get all branches including children
-                if (allBranches.length > 0) {
-                    const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
-                    randomBranch.addChildBranch();
-                } else {
-                    // Fallback if somehow no branches were found (should not happen if selectedTree.branches.length > 0)
-                    selectedTree.addBranch();
+            if (availableNutrients > 0) {
+                 // Check branch adding conditions from original logic BEFORE spending nutrient
+                const canAddTrunkBranch = selectedTree.height >= selectedTree.config.rules.minHeightForBranches;
+                const allBranches = selectedTree.getAllBranches();
+                const maxAllowedOnTree = calculateMaxAllowedBranches(
+                    selectedTree.height,
+                    selectedTree.config.rules.minHeightForBranches,
+                    selectedTree.config.maxHeight,
+                    selectedTree.config.branchParams.minBranchesAtMinHeight,
+                    selectedTree.config.branchParams.maxBranchesAtMaxHeight,
+                    selectedTree.config.branchParams.scalingExponent
+                );
+
+                if (allBranches.length >= maxAllowedOnTree && (selectedTree.branches.length === 0 || Math.random() < 0.4 || selectedTree.height < selectedTree.config.rules.minHeightForBranches + 20) ) {
+                     console.log(`Cannot add trunk branch: maximum ${maxAllowedOnTree} branches for current tree height ${selectedTree.height} reached.`);
+                     // No nutrient spent if condition fails early
+                     // Potentially break if user wanted to add to trunk but can't
                 }
+
+
+                availableNutrients--; // Spend nutrient
+
+                // Decide whether to add a branch to the trunk or to an existing branch
+                if (selectedTree.branches.length === 0 || Math.random() < 0.4 || selectedTree.height < selectedTree.config.rules.minHeightForBranches + 20) {
+                    if(canAddTrunkBranch && allBranches.length < maxAllowedOnTree) {
+                        selectedTree.addBranch();
+                        branchesAdded++;
+                    } else {
+                        console.log("Cannot add trunk branch due to height or max branch limit.");
+                        availableNutrients++; // Refund nutrient if action failed
+                    }
+                } else {
+                    if (allBranches.length > 0) {
+                        const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
+                        // addChildBranch also has internal checks (length, max children per branch, max tree branches)
+                        // We need to ensure addChildBranch itself doesn't re-check maxAllowedOnTree if addBranch (trunk) already did.
+                        // For now, assume addChildBranch is smart enough or we accept potential for slight over-limit if randomBranch is chosen.
+                        // A better way would be for addChildBranch to return success/failure.
+
+                        // Temporarily store return of addchildbranch if it were to return a boolean
+                        let childAdded = false;
+                        // Simulating the check inside addChildBranch before calling it:
+                        if (randomBranch.length >= selectedTree.config.minBranchLengthForSubBranching &&
+                            randomBranch.childBranches.length < selectedTree.config.maxChildBranchesPerBranch &&
+                            allBranches.length < maxAllowedOnTree) {
+                            randomBranch.addChildBranch();
+                            childAdded = true; // Assume it succeeded if conditions met
+                            branchesAdded++;
+                        } else {
+                             console.log("Cannot add child branch to the selected branch (too short, max children, or tree max branches).");
+                             availableNutrients++; // Refund nutrient
+                        }
+                    } else {
+                         // Fallback if somehow no branches were found (should not happen if selectedTree.branches.length > 0)
+                        if(canAddTrunkBranch && allBranches.length < maxAllowedOnTree) {
+                            selectedTree.addBranch();
+                            branchesAdded++;
+                        } else {
+                            console.log("Fallback: Cannot add trunk branch due to height or max branch limit.");
+                            availableNutrients++; // Refund nutrient
+                        }
+                    }
+                }
+            } else {
+                console.log("Not enough nutrients to add more branches.");
+                break;
             }
         }
-        updateScore(); 
+        if (branchesAdded > 0) {
+            updateScore(); // Also calls updateButtonStates
+            updateNutrientsDisplay();
+        } else {
+            // If no branches were added but an attempt was made
+            updateButtonStates();
+            updateNutrientsDisplay();
+        }
     });
 
     // Helper function in Tree class to get all branches (main + children)
@@ -1330,8 +1456,11 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
             currentMonthIndex = 0;
         }
         updateMonthDisplay();
+        availableNutrients += 1; // Gain 1 nutrient per turn
+        updateNutrientsDisplay();
+        updateButtonStates(); // Update button states as nutrients have changed
         // Future: Add logic for resource regeneration or other end-of-turn effects
-        console.log(`Turn ended. New month: ${months[currentMonthIndex]}`);
+        console.log(`Turn ended. New month: ${months[currentMonthIndex]}. Nutrients: ${availableNutrients}`);
     });
 
 
