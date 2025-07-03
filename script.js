@@ -842,7 +842,8 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
             addBranchButton.disabled = noNutrients || selectedTree.height < selectedTree.config.rules.minHeightForBranches || currentBranches >= maxAllowedBranches;
 
             // Grow Leaves button
-            growLeavesButton.disabled = noNutrients || selectedTree.getAllBranches().length === 0;
+            const canGrowLeavesThisMonth = currentMonthIndex >= selectedTree.config.leafOutStartMonth && currentMonthIndex <= selectedTree.config.leafOutEndMonth;
+            growLeavesButton.disabled = noNutrients || selectedTree.getAllBranches().length === 0 || !canGrowLeavesThisMonth;
 
             // Produce fruit button
             const canProduceFruitConditions = selectedTree.height >= selectedTree.config.rules.minHeightForFruits &&
