@@ -580,19 +580,66 @@ document.addEventListener('DOMContentLoaded', () => {
     class Leaf {
         constructor(x, y, size, color) {
             this.x = x;
+            this.x = x;
             this.y = y;
             this.size = size; // Diameter of the circle
             this.color = color;
+            // Store random direction for gradient for consistency
+            this.gradientAngle = Math.random() * 2 * Math.PI;
         }
 
         change_color(new_color) {
             this.color = new_color;
         }
 
+        // Helper function to lighten or darken a color
+        _adjustColor(color, percent) {
+            let r = parseInt(color.substring(1, 3), 16);
+            let g = parseInt(color.substring(3, 5), 16);
+            let b = parseInt(color.substring(5, 7), 16);
+
+            r = Math.min(255, Math.max(0, r + (r * percent / 100)));
+            g = Math.min(255, Math.max(0, g + (g * percent / 100)));
+            b = Math.min(255, Math.max(0, b + (b * percent / 100)));
+
+            const RR = Math.round(r).toString(16).padStart(2, '0');
+            const GG = Math.round(g).toString(16).padStart(2, '0');
+            const BB = Math.round(b).toString(16).padStart(2, '0');
+
+            return `#${RR}${GG}${BB}`;
+        }
+
         draw() {
-            ctx.fillStyle = this.color;
+            const radius = this.size / 2;
+            const x0 = this.x - Math.cos(this.gradientAngle) * radius;
+            const y0 = this.y - Math.sin(this.gradientAngle) * radius;
+            const x1 = this.x + Math.cos(this.gradientAngle) * radius;
+            const y1 = this.y + Math.sin(this.gradientAngle) * radius;
+
+            const gradient = ctx.createLinearGradient(x0, y0, x1, y1);
+
+            // Determine the second color for the gradient (lighter or darker)
+            // For yellow leaves, make them slightly darker to avoid pure white
+            // For green leaves, make them slightly lighter
+            let color2;
+            if (this.color === "yellow" || this.color.toLowerCase() === "#ffff00") {
+                 color2 = this._adjustColor(this.color, -20); // Darken yellow by 20%
+            } else if (this.color.startsWith("#")) { // Handle hex colors like green
+                color2 = this._adjustColor(this.color, 20); // Lighten by 20%
+            }
+            else { // Default for named colors like "green"
+                // Basic handling for named colors - can be expanded
+                if (this.color === "green") color2 = "lightgreen";
+                else color2 = this._adjustColor("#008000", 20); // Default to a lighter green if color is unknown green
+            }
+
+
+            gradient.addColorStop(0, this.color);
+            gradient.addColorStop(1, color2);
+
+            ctx.fillStyle = gradient;
             ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
+            ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
             ctx.fill();
         }
     }
