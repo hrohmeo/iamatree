@@ -685,6 +685,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const produceFruitButton = document.getElementById('produce-fruit-button');
     const plantNewTreeButton = document.getElementById('plant-new-tree-button');
     const scoreDisplay = document.getElementById('current-score');
+    const currentMonthDisplay = document.getElementById('current-month-display');
+    const availableNutrientsDisplay = document.getElementById('available-nutrients-display');
+    const endTurnButton = document.getElementById('end-turn-button');
+
     // Input fields
     const growHeightInput = document.getElementById('grow-height-input');
     const growRootsInput = document.getElementById('grow-roots-input');
@@ -732,6 +736,24 @@ document.addEventListener('DOMContentLoaded', () => {
     limitInputLength(addBranchInput, 4);
     limitInputLength(produceFruitInput, 4);
 
+    // Game State Variables
+    const months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+    let currentMonthIndex = 0;
+    let availableNutrients = 10000;
+
+    // Update UI Functions
+    function updateMonthDisplay() {
+        if (currentMonthDisplay) {
+            currentMonthDisplay.textContent = `Monat: ${months[currentMonthIndex]}`;
+        }
+    }
+
+    function updateNutrientsDisplay() {
+        if (availableNutrientsDisplay) {
+            availableNutrientsDisplay.textContent = `Nährstoffe: ${availableNutrients}`;
+        }
+    }
+
     // Game Setup
     function initializeGame() {
         resizeCanvas(); // Call resizeCanvas first to set correct canvas dimensions
@@ -755,6 +777,8 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
             panToTree(selectedTree); // Center the initial tree
 			selectedTree.x = (canvas.width / 2 - panX) / zoomLevel;
         }
+        updateMonthDisplay();
+        updateNutrientsDisplay();
         updateButtonStates(); // Centralized button state management (will now use selectedTree)
         gameLoop();
     }
@@ -1299,6 +1323,16 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
 
         // drawGame(); // Redraw is implicitly handled by gameLoop
     }, { passive: false }); // passive: false to allow preventDefault
+
+    endTurnButton.addEventListener('click', () => {
+        currentMonthIndex++;
+        if (currentMonthIndex >= months.length) {
+            currentMonthIndex = 0;
+        }
+        updateMonthDisplay();
+        // Future: Add logic for resource regeneration or other end-of-turn effects
+        console.log(`Turn ended. New month: ${months[currentMonthIndex]}`);
+    });
 
 
     // Touch Event Handlers for Pinch-to-Zoom and Swipe-to-Pan
