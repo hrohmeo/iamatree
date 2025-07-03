@@ -404,18 +404,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (this.getAllBranches().length >= maxAllowed) {
                 console.log(`Cannot add trunk branch: maximum ${maxAllowed} branches for current height ${this.height} reached.`);
-                return;
+                return false;
             }
 
             if (this.height < this.config.rules.minHeightForBranches) {
                 console.log(`Tree is too short for branches. Min height: ${this.config.rules.minHeightForBranches}, current: ${this.height}`);
-                return;
+                return false;
             }
 
             const eligibleTrunkHeight = this.height - this.config.rules.minHeightForBranches;
             if (eligibleTrunkHeight <= 0) {
                 console.log("Not enough eligible trunk height for branches.");
-                return;
+                return false;
             }
 
             const randomProportionInEligible = Math.random() * 0.8;
@@ -455,7 +455,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const thickness = Math.max(1, baseThickness * scaleFactor);
 
             this.branches.push(new Branch(this, branchStartX, branchStartY, length, angle, thickness, this.config.colors.trunk));
-            console.log('Branch added');
+            console.log('Trunk branch added');
+            return true;
         }
 
         getTotalLeaves() {
@@ -527,12 +528,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (this.parentTree.getAllBranches().length >= maxAllowedOnTree) {
                 console.log(`Cannot add child branch: maximum ${maxAllowedOnTree} branches for current tree height ${this.parentTree.height} reached.`);
-                return;
+                return false;
             }
 
             if (this.length < this.parentTree.config.minBranchLengthForSubBranching || this.childBranches.length >= this.parentTree.config.maxChildBranchesPerBranch) {
-                console.log("Branch is too short or already has enough child branches.");
-                return;
+                console.log("Branch is too short or already has enough child branches for sub-branching.");
+                return false;
             }
 
             const newLength = this.length * (0.5 + Math.random() * 0.3);
@@ -544,6 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const newBranch = new Branch(this.parentTree, this.endX, this.endY, newLength, newAngle, newThickness, this.color);
             this.childBranches.push(newBranch);
             console.log("Child branch added.");
+            return true;
         }
 
         addLeaf(size = 8, color = 'limegreen') {
@@ -992,22 +994,56 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
     growHeightButton.addEventListener('click', () => {
         if (selectedTree) {
             const requestedOperations = parseInt(growHeightInput.value, 10) || 1;
-            if (requestedOperations <= 0) return; // No action if input is zero or negative
+            if (requestedOperations <= 0) {
+                console.log("Requested growth amount must be positive.");
+                return;
+            }
 
-            const numOperations = Math.min(requestedOperations, availableNutrients);
+            // Determine max operations possible based on available nutrients
+            const maxAffordableOperations = Math.min(requestedOperations, availableNutrients);
 
-            if (numOperations > 0) {
-                availableNutrients -= numOperations;
-                const growthAmount = numOperations * 10; // Each operation gives 10 height
-                selectedTree.growHeight(growthAmount);
+            if (maxAffordableOperations > 0) {
+                const potentialGrowthAmount = maxAffordableOperations * 10; // Potential growth based on affordable nutrients
+
+                const heightBeforeGrowth = selectedTree.height;
+                // The growHeight method internally caps growth to selectedTree.config.maxHeight
+                selectedTree.growHeight(potentialGrowthAmount);
+                const heightAfterGrowth = selectedTree.height;
+                const actualHeightIncrease = heightAfterGrowth - heightBeforeGrowth;
+
+                // Calculate nutrients actually consumed based on actual growth
+                // Each 10 units of height costs 1 nutrient.
+                // Math.ceil is used in case growth isn't a perfect multiple of 10 (though current growHeight(10) implies it should be)
+                const nutrientsConsumed = actualHeightIncrease > 0 ? Math.ceil(actualHeightIncrease / 10) : 0;
+
+                // Deduct the actual nutrients consumed
+                availableNutrients -= nutrientsConsumed;
+
                 updateScore(); // Also calls updateButtonStates
                 updateNutrientsDisplay();
 
-                if (requestedOperations > numOperations) {
-                    console.log(`Not enough nutrients for full height growth. Grew by ${growthAmount} using ${numOperations} nutrients.`);
+                if (requestedOperations > maxAffordableOperations) {
+                    console.log(`Not enough nutrients for the full requested growth of ${requestedOperations*10}px. Attempted growth with ${maxAffordableOperations} nutrients, resulting in ${actualHeightIncrease}px growth and consuming ${nutrientsConsumed} nutrients.`);
+                } else if (potentialGrowthAmount > actualHeightIncrease) {
+                    // This means growth was capped by maxHeight, not by nutrients
+                    console.log(`Tree reached max height. Requested growth corresponding to ${maxAffordableOperations} nutrients, but actual growth was ${actualHeightIncrease}px, consuming ${nutrientsConsumed} nutrients.`);
+                } else if (nutrientsConsumed > 0) {
+                    console.log(`Tree grew by ${actualHeightIncrease}px, consuming ${nutrientsConsumed} nutrients.`);
                 }
-            } else {
-                console.log("Not enough nutrients to grow height, or requested amount was zero.");
+
+                if (nutrientsConsumed === 0 && maxAffordableOperations > 0 && actualHeightIncrease === 0) {
+                    // This case handles when tree is already at max height
+                     console.log(`Tree is already at its maximum height (${selectedTree.config.maxHeight}px). No growth occurred, no nutrients consumed.`);
+                }
+
+            } else { // maxAffordableOperations is 0
+                if (availableNutrients <= 0 && requestedOperations > 0) {
+                    console.log("Not enough nutrients to grow height.");
+                } else {
+                    // This case should ideally be caught by requestedOperations <= 0 check earlier,
+                    // but as a fallback or if requestedOperations was valid but availableNutrients was 0.
+                    console.log("Cannot grow height: No nutrients available or requested growth was zero/negative.");
+                }
             }
         } else {
             console.log("No tree selected to grow height.");
@@ -1132,86 +1168,101 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
     });
 
     addBranchButton.addEventListener('click', () => {
-        if (!selectedTree) return;
-        let count = parseInt(addBranchInput.value, 10) || 1;
-        let branchesAdded = 0;
+        if (!selectedTree) {
+            console.log("No tree selected to add branches to.");
+            return;
+        }
 
-        for (let i = 0; i < count; i++) {
-            if (availableNutrients > 0) {
-                 // Check branch adding conditions from original logic BEFORE spending nutrient
-                const canAddTrunkBranch = selectedTree.height >= selectedTree.config.rules.minHeightForBranches;
-                const allBranches = selectedTree.getAllBranches();
-                const maxAllowedOnTree = calculateMaxAllowedBranches(
-                    selectedTree.height,
-                    selectedTree.config.rules.minHeightForBranches,
-                    selectedTree.config.maxHeight,
-                    selectedTree.config.branchParams.minBranchesAtMinHeight,
-                    selectedTree.config.branchParams.maxBranchesAtMaxHeight,
-                    selectedTree.config.branchParams.scalingExponent
-                );
+        const desiredCount = parseInt(addBranchInput.value, 10) || 1;
+        if (desiredCount <= 0) {
+            console.log("Number of branches to add must be positive.");
+            return;
+        }
 
-                if (allBranches.length >= maxAllowedOnTree && (selectedTree.branches.length === 0 || Math.random() < 0.4 || selectedTree.height < selectedTree.config.rules.minHeightForBranches + 20) ) {
-                     console.log(`Cannot add trunk branch: maximum ${maxAllowedOnTree} branches for current tree height ${selectedTree.height} reached.`);
-                     // No nutrient spent if condition fails early
-                     // Potentially break if user wanted to add to trunk but can't
-                }
+        let branchesSuccessfullyAdded = 0;
+        let consecutiveFailures = 0;
+        const MAX_CONSECUTIVE_FAILURES = 10; // Stop after this many failures in a row
 
+        console.log(`Attempting to add ${desiredCount} branches.`);
 
-                availableNutrients--; // Spend nutrient
-
-                // Decide whether to add a branch to the trunk or to an existing branch
-                if (selectedTree.branches.length === 0 || Math.random() < 0.4 || selectedTree.height < selectedTree.config.rules.minHeightForBranches + 20) {
-                    if(canAddTrunkBranch && allBranches.length < maxAllowedOnTree) {
-                        selectedTree.addBranch();
-                        branchesAdded++;
-                    } else {
-                        console.log("Cannot add trunk branch due to height or max branch limit.");
-                        availableNutrients++; // Refund nutrient if action failed
-                    }
-                } else {
-                    if (allBranches.length > 0) {
-                        const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
-                        // addChildBranch also has internal checks (length, max children per branch, max tree branches)
-                        // We need to ensure addChildBranch itself doesn't re-check maxAllowedOnTree if addBranch (trunk) already did.
-                        // For now, assume addChildBranch is smart enough or we accept potential for slight over-limit if randomBranch is chosen.
-                        // A better way would be for addChildBranch to return success/failure.
-
-                        // Temporarily store return of addchildbranch if it were to return a boolean
-                        let childAdded = false;
-                        // Simulating the check inside addChildBranch before calling it:
-                        if (randomBranch.length >= selectedTree.config.minBranchLengthForSubBranching &&
-                            randomBranch.childBranches.length < selectedTree.config.maxChildBranchesPerBranch &&
-                            allBranches.length < maxAllowedOnTree) {
-                            randomBranch.addChildBranch();
-                            childAdded = true; // Assume it succeeded if conditions met
-                            branchesAdded++;
-                        } else {
-                             console.log("Cannot add child branch to the selected branch (too short, max children, or tree max branches).");
-                             availableNutrients++; // Refund nutrient
-                        }
-                    } else {
-                         // Fallback if somehow no branches were found (should not happen if selectedTree.branches.length > 0)
-                        if(canAddTrunkBranch && allBranches.length < maxAllowedOnTree) {
-                            selectedTree.addBranch();
-                            branchesAdded++;
-                        } else {
-                            console.log("Fallback: Cannot add trunk branch due to height or max branch limit.");
-                            availableNutrients++; // Refund nutrient
-                        }
-                    }
-                }
-            } else {
-                console.log("Not enough nutrients to add more branches.");
+        while (branchesSuccessfullyAdded < desiredCount && availableNutrients > 0 && consecutiveFailures < MAX_CONSECUTIVE_FAILURES) {
+            if (availableNutrients <= 0) {
+                console.log("Out of nutrients during branch adding process.");
                 break;
             }
+
+            availableNutrients--; // Tentatively spend nutrient
+
+            let attemptSuccessful = false;
+            const allBranches = selectedTree.getAllBranches(); // Get current branches state for decisions
+
+            // Decision logic: add to trunk or existing branch
+            // Prioritize trunk if few branches or tree is young, or by chance
+            const shouldTryTrunk = selectedTree.branches.length === 0 ||
+                                   Math.random() < 0.4 ||
+                                   selectedTree.height < selectedTree.config.rules.minHeightForBranches + 20;
+
+            if (shouldTryTrunk) {
+                // console.log("Attempting to add branch to trunk...");
+                if (selectedTree.addBranch()) { // addBranch now returns true/false
+                    attemptSuccessful = true;
+                    // console.log("Successfully added branch to trunk.");
+                } else {
+                    // console.log("Failed to add branch to trunk. Trying child branch if possible.");
+                    // If trunk fails, try adding to a child branch if conditions allow as a fallback for this iteration
+                    if (allBranches.length > 0) {
+                        const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
+                        // console.log("Fallback: Attempting to add to an existing branch...");
+                        if (randomBranch.addChildBranch()) { // addChildBranch now returns true/false
+                            attemptSuccessful = true;
+                            // console.log("Successfully added child branch as fallback.");
+                        }
+                    }
+                }
+            } else if (allBranches.length > 0) { // If not trying trunk, and there are branches, try adding to a child
+                // console.log("Attempting to add branch to an existing branch...");
+                const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
+                if (randomBranch.addChildBranch()) { // addChildBranch now returns true/false
+                    attemptSuccessful = true;
+                    // console.log("Successfully added child branch.");
+                }
+            } else {
+                // No branches yet, and initial trunk attempt (implicit in shouldTryTrunk or first iteration) might have failed
+                // or this is a state where shouldTryTrunk is false but there are no allBranches (should be rare)
+                // Try trunk one last time this iteration if all else failed.
+                // console.log("No existing branches to add to, or previous attempts failed. Final attempt on trunk for this iteration...");
+                if (selectedTree.addBranch()) {
+                    attemptSuccessful = true;
+                }
+            }
+
+            if (attemptSuccessful) {
+                branchesSuccessfullyAdded++;
+                consecutiveFailures = 0; // Reset on success
+                // console.log(`Branch ${branchesSuccessfullyAdded} of ${desiredCount} added successfully.`);
+            } else {
+                availableNutrients++; // Refund nutrient for failed attempt
+                consecutiveFailures++;
+                console.log(`Failed to add a branch (attempt ${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES} consecutive). Nutrient refunded.`);
+            }
         }
-        if (branchesAdded > 0) {
+
+        if (branchesSuccessfullyAdded > 0) {
+            console.log(`Successfully added ${branchesSuccessfullyAdded} of ${desiredCount} requested branches.`);
             updateScore(); // Also calls updateButtonStates
             updateNutrientsDisplay();
         } else {
-            // If no branches were added but an attempt was made
+            console.log(`No branches were added. Requested: ${desiredCount}.`);
+            // Ensure UI is updated even if no branches were added (e.g. nutrients might have changed if initial attempts failed)
             updateButtonStates();
             updateNutrientsDisplay();
+        }
+
+        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+            console.log(`Stopped adding branches after ${MAX_CONSECUTIVE_FAILURES} consecutive failed attempts. Added ${branchesSuccessfullyAdded} branches.`);
+        }
+        if (branchesSuccessfullyAdded < desiredCount && availableNutrients <= 0 && desiredCount > 0) {
+            console.log(`Ran out of nutrients. Added ${branchesSuccessfullyAdded} of ${desiredCount} requested branches.`);
         }
     });
 
