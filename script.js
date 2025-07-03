@@ -593,20 +593,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Helper function to lighten or darken a color
-        _adjustColor(color, percent) {
-            let r = parseInt(color.substring(1, 3), 16);
-            let g = parseInt(color.substring(3, 5), 16);
-            let b = parseInt(color.substring(5, 7), 16);
+        _adjustColor(colorInput, percent) {
+            let hexColor = colorInput;
+            // Convert named colors to hex - extend this map as needed
+            const colorNameToHex = {
+                "green": "#008000",
+                "yellow": "#FFFF00",
+                "lightgreen": "#90EE90"
+                // Add other named colors used in your application if any
+            };
 
-            r = Math.min(255, Math.max(0, r + (r * percent / 100)));
-            g = Math.min(255, Math.max(0, g + (g * percent / 100)));
-            b = Math.min(255, Math.max(0, b + (b * percent / 100)));
+            if (colorNameToHex[colorInput.toLowerCase()]) {
+                hexColor = colorNameToHex[colorInput.toLowerCase()];
+            }
 
-            const RR = Math.round(r).toString(16).padStart(2, '0');
-            const GG = Math.round(g).toString(16).padStart(2, '0');
-            const BB = Math.round(b).toString(16).padStart(2, '0');
+            // Ensure hexColor is a valid hex string (starts with # and is 7 chars long)
+            if (!hexColor.startsWith("#") || hexColor.length !== 7) {
+                console.warn(`Invalid color format for _adjustColor: ${colorInput}. Defaulting to dark gray.`);
+                hexColor = "#A9A9A9"; // Default to a dark gray or some other fallback
+            }
 
-            return `#${RR}${GG}${BB}`;
+            try {
+                let r = parseInt(hexColor.substring(1, 3), 16);
+                let g = parseInt(hexColor.substring(3, 5), 16);
+                let b = parseInt(hexColor.substring(5, 7), 16);
+
+                r = Math.min(255, Math.max(0, r + (r * percent / 100)));
+                g = Math.min(255, Math.max(0, g + (g * percent / 100)));
+                b = Math.min(255, Math.max(0, b + (b * percent / 100)));
+
+                const RR = Math.round(r).toString(16).padStart(2, '0');
+                const GG = Math.round(g).toString(16).padStart(2, '0');
+                const BB = Math.round(b).toString(16).padStart(2, '0');
+
+                return `#${RR}${GG}${BB}`;
+            } catch (e) {
+                console.error(`Error processing color ${hexColor} (original: ${colorInput}):`, e);
+                return hexColor; // Return original hex or the mapped hex if parsing failed
+            }
         }
 
         draw() {
