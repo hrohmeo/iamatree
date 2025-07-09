@@ -128,6 +128,350 @@ document.addEventListener('DOMContentLoaded', () => {
     const availableTreeConfigs = [defaultTreeConfig, willowLikeConfig];
     let currentConfigIndex = 0; // To cycle through configs when planting new trees
 
+    // --- Start of New Tree Configurations ---
+
+    // Uncommon Trees
+    const oakConfig = {
+        name: "Oak",
+        maxHeight: 900,
+        maxWidth: 35,
+        colors: {
+            trunk: '#654321', // Darker, rugged brown
+            leaf: '#556B2F', // Dark olive green
+            fruit: '#8B4513', // Acorn color (saddle brown)
+            root: '#5C4033', // Darker brown for roots
+        },
+        angles: { ...defaultTreeConfig.angles, branchInitialMin: -Math.PI * 0.8, branchInitialMax: -Math.PI * 0.2 },
+        rules: { ...defaultTreeConfig.rules, minHeightForBranches: 90, minHeightForFruits: 220 },
+        branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 1100, scalingExponent: 1.4 },
+        fruitSize: { min: 5, max: 8 }, // Acorns
+        leafSize: { min: 18, max: 32 },
+        trunkWidthGrowthFactor: 0.055,
+        maxChildBranchesPerBranch: 2,
+        minBranchLengthForSubBranching: 12,
+        maxChildRootsPerRoot: 2,
+        minRootLengthForSubRooting: 9,
+        leafPlacementRange: { min: 0.15, max: 0.95 },
+        fruitPlacementRange: { min: 0.2, max: 0.8 },
+        leafOutStartMonth: 2, // March
+        leafOutEndMonth: 5,   // June
+    };
+
+    const beechConfig = {
+        name: "Beech",
+        maxHeight: 850,
+        maxWidth: 30,
+        colors: {
+            trunk: '#A9A9A9', // Smooth, greyish bark
+            leaf: '#3CB371', // Medium sea green
+            fruit: '#D2691E', // Beechnut color (chocolate)
+            root: '#808080', // Grey for roots
+        },
+        angles: { ...defaultTreeConfig.angles, branchSubsequentVariation: Math.PI / 2.5 },
+        rules: { ...defaultTreeConfig.rules, minHeightForBranches: 95, minLeavesForFruits: 55 },
+        branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 1000, scalingExponent: 1.55 },
+        fruitSize: { min: 4, max: 7 }, // Beechnuts
+        leafSize: { min: 17, max: 30 },
+        trunkWidthGrowthFactor: 0.045,
+        maxChildBranchesPerBranch: 2,
+        minBranchLengthForSubBranching: 10,
+        maxChildRootsPerRoot: 3,
+        minRootLengthForSubRooting: 7,
+        leafPlacementRange: { min: 0.2, max: 1.0 },
+        fruitPlacementRange: { min: 0.25, max: 0.85 },
+        leafOutStartMonth: 3, // April
+        leafOutEndMonth: 6,   // July
+    };
+
+    const mapleConfig = {
+        name: "Maple",
+        maxHeight: 750,
+        maxWidth: 28,
+        colors: {
+            trunk: '#BC8F8F', // Rosy brown
+            leaf: '#FF6347', // Tomato red (autumn color, could vary)
+            fruit: '#CD853F', // Samara color (peru)
+            root: '#A0522D', // Sienna
+        },
+        angles: { ...defaultTreeConfig.angles, branchInitialMin: -Math.PI * 0.9, branchInitialMax: -Math.PI * 0.1 },
+        rules: { ...defaultTreeConfig.rules, minHeightForFruits: 230 },
+        branchParams: { ...defaultTreeConfig.branchParams, minBranchesAtMinHeight: 3, maxBranchesAtMaxHeight: 1300, scalingExponent: 1.6 },
+        fruitSize: { min: 10, max: 15 }, // Samaras (helicopter seeds) - representing size of the wing pair
+        leafSize: { min: 20, max: 38 }, // Larger, distinct leaves
+        trunkWidthGrowthFactor: 0.05,
+        maxChildBranchesPerBranch: 3,
+        minBranchLengthForSubBranching: 9,
+        maxChildRootsPerRoot: 2,
+        minRootLengthForSubRooting: 8,
+        leafPlacementRange: { min: 0.1, max: 0.9 },
+        fruitPlacementRange: { min: 0.15, max: 0.8 },
+        leafOutStartMonth: 2, // March
+        leafOutEndMonth: 5,   // June
+    };
+
+    // Rare Trees
+    const firConfig = {
+        name: "Fir",
+        maxHeight: 1200,
+        maxWidth: 25, // Typically slender
+        colors: {
+            trunk: '#708090', // Slate gray
+            leaf: '#006400', // Dark green (needles)
+            fruit: '#8B4513', // Cone color (saddle brown)
+            root: '#556B2F', // Dark olive green for roots
+        },
+        angles: { ...defaultTreeConfig.angles, branchInitialMin: -Math.PI * 0.6, branchInitialMax: -Math.PI * 0.4, branchSubsequentVariation: Math.PI / 4 }, // More horizontal branches
+        rules: { ...defaultTreeConfig.rules, minHeightForBranches: 70, minHeightForFruits: 300 },
+        branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 800, scalingExponent: 1.3 },
+        fruitSize: { min: 10, max: 18 }, // Cones
+        leafSize: { min: 12, max: 22 }, // Representing clusters of needles
+        trunkWidthGrowthFactor: 0.035,
+        maxChildBranchesPerBranch: 2,
+        minBranchLengthForSubBranching: 15, // Longer main branches before sub-branching
+        maxChildRootsPerRoot: 2,
+        minRootLengthForSubRooting: 10,
+        leafPlacementRange: { min: 0.05, max: 1.0 }, // Needles cover more of the branch
+        fruitPlacementRange: { min: 0.5, max: 0.9 }, // Cones often near ends or upper parts
+        leafOutStartMonth: 0, // Evergreen - can "grow" leaves year-round conceptually
+        leafOutEndMonth: 11,
+    };
+
+    const pineConfig = {
+        name: "Pine",
+        maxHeight: 1100,
+        maxWidth: 28,
+        colors: {
+            trunk: '#8B7355', // Rosy brown, slightly lighter than oak
+            leaf: '#228B22', // Forest green (needles)
+            fruit: '#A0522D', // Cone color (sienna)
+            root: '#6B4226', // Darker brown
+        },
+        angles: { ...defaultTreeConfig.angles, branchInitialMin: -Math.PI * 0.7, branchInitialMax: -Math.PI * 0.3, branchSubsequentVariation: Math.PI / 3.5 },
+        rules: { ...defaultTreeConfig.rules, minHeightForBranches: 75, minLeavesForFruits: 70 },
+        branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 900, scalingExponent: 1.35 },
+        fruitSize: { min: 8, max: 15 }, // Cones
+        leafSize: { min: 14, max: 25 }, // Needles
+        trunkWidthGrowthFactor: 0.04,
+        maxChildBranchesPerBranch: 2,
+        minBranchLengthForSubBranching: 14,
+        maxChildRootsPerRoot: 2,
+        minRootLengthForSubRooting: 9,
+        leafPlacementRange: { min: 0.1, max: 1.0 },
+        fruitPlacementRange: { min: 0.4, max: 0.85 },
+        leafOutStartMonth: 0, // Evergreen
+        leafOutEndMonth: 11,
+    };
+
+    const spruceConfig = {
+        name: "Spruce",
+        maxHeight: 1300, // Can get very tall
+        maxWidth: 22, // Slender, conical shape
+        colors: {
+            trunk: '#696969', // Dim gray, sometimes scaly
+            leaf: '#008080', // Teal (bluish-green needles)
+            fruit: '#D2B48C', // Cone color (tan)
+            root: '#4A3B31', // Dark, earthy brown
+        },
+        angles: { ...defaultTreeConfig.angles, branchInitialMin: -Math.PI * 0.55, branchInitialMax: -Math.PI * 0.45, branchSubsequentVariation: Math.PI / 4.5 }, // Branches often slightly downturned
+        rules: { ...defaultTreeConfig.rules, minHeightForBranches: 60, minHeightForFruits: 350 },
+        branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 700, scalingExponent: 1.25 }, // Fewer, but well-defined branch whorls
+        fruitSize: { min: 12, max: 20 }, // Longer cones
+        leafSize: { min: 10, max: 20 }, // Needles
+        trunkWidthGrowthFactor: 0.03,
+        maxChildBranchesPerBranch: 1, // Less sub-branching to maintain conical shape
+        minBranchLengthForSubBranching: 18,
+        maxChildRootsPerRoot: 2,
+        minRootLengthForSubRooting: 12,
+        leafPlacementRange: { min: 0.0, max: 1.0 }, // Needles all along
+        fruitPlacementRange: { min: 0.6, max: 0.95 }, // Cones hang down, often upper parts
+        leafOutStartMonth: 0, // Evergreen
+        leafOutEndMonth: 11,
+    };
+
+    // Epic Trees
+    const mangoConfig = {
+        name: "Mango",
+        maxHeight: 600, // Broad, dense canopy rather than extreme height
+        maxWidth: 40, // Wide trunk
+        colors: {
+            trunk: '#A0522D', // Sienna, can be darker
+            leaf: '#3A5F0B', // Dark, glossy green
+            fruit: '#FFBF00', // Amber to orange-red for mangoes
+            root: '#8B4513', // Saddle brown
+        },
+        angles: { ...defaultTreeConfig.angles, branchInitialMin: -Math.PI * 0.85, branchInitialMax: -Math.PI * 0.15, branchSubsequentVariation: Math.PI / 2.8 }, // Spreading branches
+        rules: { ...defaultTreeConfig.rules, minHeightForBranches: 50, minHeightForFruits: 150, minLeavesForFruits: 40 },
+        branchParams: { ...defaultTreeConfig.branchParams, minBranchesAtMinHeight: 4, maxBranchesAtMaxHeight: 1500, scalingExponent: 1.7 }, // Many branches for dense canopy
+        fruitSize: { min: 15, max: 25 }, // Mangoes
+        leafSize: { min: 22, max: 40 }, // Large leaves
+        trunkWidthGrowthFactor: 0.06,
+        maxChildBranchesPerBranch: 3,
+        minBranchLengthForSubBranching: 7,
+        maxChildRootsPerRoot: 3,
+        minRootLengthForSubRooting: 5,
+        leafPlacementRange: { min: 0.1, max: 1.0 },
+        fruitPlacementRange: { min: 0.3, max: 0.7 }, // Fruits hang
+        leafOutStartMonth: 1, // Tropical, longer leafing period
+        leafOutEndMonth: 10,
+    };
+
+    const avocadoConfig = {
+        name: "Avocado",
+        maxHeight: 500,
+        maxWidth: 38,
+        colors: {
+            trunk: '#8FBC8F', // Dark sea green (can vary)
+            leaf: '#2E8B57', // Sea green
+            fruit: '#556B2F', // Dark olive green for avocado skin
+            root: '#715C3A', // Earthy brown
+        },
+        angles: { ...defaultTreeConfig.angles, branchSubsequentVariation: Math.PI / 2.5 },
+        rules: { ...defaultTreeConfig.rules, minHeightForFruits: 120, minLeavesForFruits: 35 },
+        branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 1400, scalingExponent: 1.65 },
+        fruitSize: { min: 12, max: 20 }, // Avocados
+        leafSize: { min: 20, max: 35 },
+        trunkWidthGrowthFactor: 0.058,
+        maxChildBranchesPerBranch: 3,
+        minBranchLengthForSubBranching: 6,
+        maxChildRootsPerRoot: 3,
+        minRootLengthForSubRooting: 6,
+        leafPlacementRange: { min: 0.15, max: 0.95 },
+        fruitPlacementRange: { min: 0.25, max: 0.75 },
+        leafOutStartMonth: 1,
+        leafOutEndMonth: 10,
+    };
+
+    const orangeConfig = {
+        name: "Orange",
+        maxHeight: 400, // Smaller tree
+        maxWidth: 25,
+        colors: {
+            trunk: '#B8860B', // DarkGoldenRod
+            leaf: '#008000', // Green
+            fruit: '#FFA500', // Orange
+            root: '#8B4513', // SaddleBrown
+        },
+        angles: { ...defaultTreeConfig.angles, branchInitialMin: -Math.PI * 0.9, branchInitialMax: -Math.PI * 0.1, branchSubsequentVariation: Math.PI / 2.9 },
+        rules: { ...defaultTreeConfig.rules, minHeightForBranches: 40, minHeightForFruits: 100, minLeavesForFruits: 30 },
+        branchParams: { ...defaultTreeConfig.branchParams, minBranchesAtMinHeight: 3, maxBranchesAtMaxHeight: 1600, scalingExponent: 1.75 }, // Bushy
+        fruitSize: { min: 10, max: 16 }, // Oranges
+        leafSize: { min: 18, max: 30 },
+        trunkWidthGrowthFactor: 0.052,
+        maxChildBranchesPerBranch: 3,
+        minBranchLengthForSubBranching: 5,
+        maxChildRootsPerRoot: 2,
+        minRootLengthForSubRooting: 5,
+        leafPlacementRange: { min: 0.1, max: 0.95 },
+        fruitPlacementRange: { min: 0.2, max: 0.8 },
+        leafOutStartMonth: 2,
+        leafOutEndMonth: 9, // Shorter active season than mango/avocado
+    };
+
+    // Legendary Trees
+    const durianConfig = {
+        name: "Durian",
+        maxHeight: 700, // Tall, but not extremely so
+        maxWidth: 33,
+        colors: {
+            trunk: '#7B684E', // Drab brown
+            leaf: '#556B2F', // Dark olive green, often lighter underside
+            fruit: '#BDB76B', // Dark khaki (spiky husk)
+            root: '#654321', // Dark brown
+        },
+        angles: { ...defaultTreeConfig.angles, branchInitialMax: -Math.PI * 0.25 }, // Branches tend to be somewhat upright then spread
+        rules: { ...defaultTreeConfig.rules, minHeightForBranches: 60, minHeightForFruits: 180, minLeavesForFruits: 50 },
+        branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 1200, scalingExponent: 1.5 },
+        fruitSize: { min: 20, max: 35 }, // Large, heavy fruits
+        leafSize: { min: 18, max: 30 },
+        trunkWidthGrowthFactor: 0.053,
+        maxChildBranchesPerBranch: 2,
+        minBranchLengthForSubBranching: 10,
+        maxChildRootsPerRoot: 2,
+        minRootLengthForSubRooting: 8,
+        leafPlacementRange: { min: 0.2, max: 0.9 },
+        fruitPlacementRange: { min: 0.3, max: 0.6 }, // Heavy fruits hang closer to stronger parts
+        leafOutStartMonth: 1, // Tropical
+        leafOutEndMonth: 10,
+    };
+
+    const lycheeConfig = {
+        name: "Lychee",
+        maxHeight: 450, // Medium-sized, rounded canopy
+        maxWidth: 30,
+        colors: {
+            trunk: '#A0522D', // Sienna, often grayish
+            leaf: '#2E8B57', // Sea green, glossy
+            fruit: '#FF007F', // Bright rose/pink for lychee fruit
+            root: '#8B5A2B', // Darker, earthy brown
+        },
+        angles: { ...defaultTreeConfig.angles, branchSubsequentVariation: Math.PI / 2.7 }, // Dense, rounded canopy
+        rules: { ...defaultTreeConfig.rules, minHeightForBranches: 35, minHeightForFruits: 90, minLeavesForFruits: 30 },
+        branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 1700, scalingExponent: 1.8 }, // Very bushy
+        fruitSize: { min: 6, max: 10 }, // Small fruits in clusters
+        leafSize: { min: 15, max: 28 },
+        trunkWidthGrowthFactor: 0.05,
+        maxChildBranchesPerBranch: 3,
+        minBranchLengthForSubBranching: 4,
+        maxChildRootsPerRoot: 3,
+        minRootLengthForSubRooting: 4,
+        leafPlacementRange: { min: 0.1, max: 1.0 },
+        fruitPlacementRange: { min: 0.2, max: 0.8 }, // Fruits in panicles
+        leafOutStartMonth: 2,
+        leafOutEndMonth: 9,
+    };
+
+    // Mythical Tree
+    const redwoodConfig = {
+        name: "Redwood",
+        maxHeight: 2000, // Extremely tall
+        maxWidth: 50,    // Very thick trunk
+        colors: {
+            trunk: '#8B4513', // Saddle brown, reddish tinge
+            leaf: '#006400', // Dark green (scale-like leaves/sprays)
+            fruit: '#654321', // Small cone color (dark brown)
+            root: '#5C4033', // Deep, dark brown
+        },
+        angles: { // Branches are relatively short compared to height, often upswept initially
+            ...defaultTreeConfig.angles,
+            branchInitialMin: -Math.PI * 0.6,
+            branchInitialMax: -Math.PI * 0.4,
+            branchSubsequentVariation: Math.PI / 5, // Less variation to maintain verticality
+        },
+        rules: {
+            ...defaultTreeConfig.rules,
+            minHeightForBranches: 150, // Branches start higher up
+            minHeightForFruits: 500,   // Fruits high up
+            minLeavesForFruits: 200,
+        },
+        branchParams: { // Fewer main branches, but can be dense higher up
+            ...defaultTreeConfig.branchParams,
+            minBranchesAtMinHeight: 5,
+            maxBranchesAtMaxHeight: 500, // Relative to height, not as "bushy" as smaller trees
+            scalingExponent: 1.2,      // Slower increase in branch count with height
+        },
+        fruitSize: { min: 3, max: 6 },    // Small cones
+        leafSize: { min: 20, max: 35 },   // Representing small sprays/leaf scales - Increased size
+        trunkWidthGrowthFactor: 0.025, // Grows proportionally narrower for its height
+        maxChildBranchesPerBranch: 2,
+        minBranchLengthForSubBranching: 20, // Branches must be long to sub-branch
+        maxChildRootsPerRoot: 2,           // Massive root system, but not overly complex branching per root
+        minRootLengthForSubRooting: 15,
+        leafPlacementRange: { min: 0.0, max: 1.0 },
+        fruitPlacementRange: { min: 0.7, max: 0.95 }, // Cones at tips of branches, high up
+        leafOutStartMonth: 0, // Evergreen
+        leafOutEndMonth: 11,
+    };
+
+    // --- End of New Tree Configurations ---
+
+    availableTreeConfigs.push(
+        oakConfig, beechConfig, mapleConfig, // Uncommon
+        firConfig, pineConfig, spruceConfig, // Rare
+        mangoConfig, avocadoConfig, orangeConfig, // Epic
+        durianConfig, lycheeConfig, // Legendary
+        redwoodConfig // Mythical
+    );
+
     // Game variables
     let score = 0;
     let trees = [];
@@ -1840,4 +2184,148 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
         isTouching = false;
     }, { passive: false });
 
+    // Debug Button Functionality
+    const debugPlantAllMaxedTreesButton = document.getElementById('debug-plant-all-maxed-trees-button');
+    if (debugPlantAllMaxedTreesButton) {
+        debugPlantAllMaxedTreesButton.addEventListener('click', () => {
+            console.log("DEBUG: Plant All Maxed Trees button clicked.");
+
+            const originalNutrients = availableNutrients;
+            const originalMonthIndex = currentMonthIndex;
+            availableNutrients = 1000000; // Grant a large number of nutrients for debugging
+            currentMonthIndex = 3; // Set to April (a good month for leaf growth for many trees)
+            updateNutrientsDisplay(); // Update display for temp nutrients
+            updateMonthDisplay(); // Update display for temp month
+
+            let currentXOffset = 0; // To space out trees
+
+            availableTreeConfigs.forEach((config, index) => {
+                // Calculate initial X position in screen coordinates, then convert to world
+                // Ensure trees are spaced out enough so they don't overlap too much
+                const initialScreenX = (canvas.width / 2) + currentXOffset - ( (availableTreeConfigs.length / 2) * (config.maxWidth + 100) ); // Base screen X + offset
+                const treeWorldX = (initialScreenX - panX) / zoomLevel;
+                const treeWorldY = WORLD_TREE_BASE_Y;
+
+                console.log(`DEBUG: Planting ${config.name} at worldX: ${treeWorldX}`);
+                const tree = new Tree(treeWorldX, treeWorldY, config);
+                trees.push(tree);
+                selectedTree = tree; // Select the new tree for operations
+                tree.isSelected = true;
+
+                // 1. Grow to max height
+                console.log(`DEBUG: Growing ${config.name} to maxHeight.`);
+                tree.growHeight(config.maxHeight); // growHeight handles not exceeding maxHeight
+
+                // 2. Add 50 roots
+                console.log(`DEBUG: Adding 50 roots to ${config.name}.`);
+                for (let i = 0; i < 50; i++) {
+                    if (availableNutrients > 0) {
+                        tree.addRoot();
+                        availableNutrients--; // Still consume for tracking, though we have plenty
+                    } else break;
+                }
+
+                // 3. Add 100 branches
+                // Need to ensure tree is tall enough for branches based on its config
+                console.log(`DEBUG: Adding 100 branches to ${config.name}.`);
+                let branchesAdded = 0;
+                let branchAttempts = 0;
+                while(branchesAdded < 100 && branchAttempts < 500) { // Attempt limit to prevent infinite loops
+                    if (availableNutrients > 0) {
+                        let addedThisTry = false;
+                        // Try adding to trunk first if possible, then to existing branches
+                        if (tree.height >= tree.config.rules.minHeightForBranches) {
+                             if (tree.addBranch()) { // addBranch adds to trunk
+                                branchesAdded++;
+                                addedThisTry = true;
+                            }
+                        }
+                        if (!addedThisTry) { // If trunk adding failed or not possible, try child branch
+                            const allBranches = tree.getAllBranches();
+                            if (allBranches.length > 0) {
+                                const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
+                                if (randomBranch.addChildBranch()) {
+                                    branchesAdded++;
+                                    addedThisTry = true;
+                                }
+                            }
+                        }
+                        if (addedThisTry) availableNutrients--;
+                        branchAttempts++;
+                    } else break;
+                    if(branchAttempts % 50 === 0) console.log(`DEBUG: ${config.name} branch attempt ${branchAttempts}, added ${branchesAdded}`);
+                }
+                 console.log(`DEBUG: ${config.name} finished adding branches. Total added: ${branchesAdded}`);
+
+
+                // 4. Add 500 leaves
+                // Ensure tree has branches and it's a valid month (temporarily set)
+                console.log(`DEBUG: Adding 500 leaves to ${config.name}. Current month is ${months[currentMonthIndex]}`);
+                let leavesAdded = 0;
+                let leafAttempts = 0;
+                while(leavesAdded < 500 && leafAttempts < 1000) { // Attempt limit
+                     if (availableNutrients > 0) {
+                        if (tree.addLeaf()) { // addLeaf will pick a random branch
+                            leavesAdded++;
+                            availableNutrients--;
+                        }
+                        leafAttempts++;
+                    } else break;
+                }
+                console.log(`DEBUG: ${config.name} finished adding leaves. Total added: ${leavesAdded}`);
+
+                // 5. Produce 50 fruits
+                // Ensure tree meets conditions (height, leaves)
+                console.log(`DEBUG: Producing 50 fruits for ${config.name}.`);
+                let fruitsProduced = 0;
+                let fruitAttempts = 0;
+                while(fruitsProduced < 50 && fruitAttempts < 200) { // Attempt limit
+                    if (availableNutrients > 0) {
+                        // produceFruit checks conditions internally
+                        // Temporarily boost leaves if needed for fruit production for debug
+                        if (tree.getTotalLeaves() < tree.config.rules.minLeavesForFruits && tree.getAllBranches().length > 0) {
+                            console.log(`DEBUG: ${config.name} has ${tree.getTotalLeaves()} leaves, needs ${tree.config.rules.minLeavesForFruits}. Temporarily adding more leaves for fruit prod.`);
+                            for(let l=0; l< tree.config.rules.minLeavesForFruits - tree.getTotalLeaves() + 5; l++) tree.addLeaf();
+                        }
+
+                        tree.produceFruit(1); // produceFruit adds to tree.fruitObjects
+                        // We need to check if a fruit was actually added, as produceFruit might not if conditions fail
+                        // For this debug, let's assume it will if we ensure leaves.
+                        // The produceFruit method itself increments tree.fruits and adds to fruitObjects.
+                        // Let's count based on the object array length change for robustness.
+                        const currentFruitCount = tree.fruitObjects.length;
+                        if (tree.fruitObjects.length > fruitsProduced) { // Check if a fruit was actually added.
+                           fruitsProduced = tree.fruitObjects.length; // Update count based on actual objects
+                           availableNutrients--;
+                        } else {
+                            // If produceFruit didn't add, maybe a condition is still failing.
+                            // console.log(`DEBUG: Fruit production failed for ${config.name} on attempt ${fruitAttempts + 1}`);
+                        }
+                        fruitAttempts++;
+                    } else break;
+                }
+                // Ensure the tree.fruits counter matches fruitObjects.length after all operations
+                tree.fruits = tree.fruitObjects.length;
+                console.log(`DEBUG: ${config.name} finished producing fruits. Total produced (actual objects): ${tree.fruitObjects.length}`);
+
+
+                currentXOffset += (config.maxWidth + 250); // Increment offset for the next tree, increased spacing
+                if (selectedTree) selectedTree.isSelected = false; // Deselect previous before selecting next
+            });
+
+            if (trees.length > 0) {
+                selectedTree = trees[trees.length - 1]; // Select the last planted debug tree
+                selectedTree.isSelected = true;
+                panToTree(selectedTree); // Pan to the last one
+            }
+
+            // Restore original game state
+            availableNutrients = originalNutrients;
+            currentMonthIndex = originalMonthIndex;
+            updateNutrientsDisplay();
+            updateMonthDisplay();
+            updateScore(); // This also calls updateButtonStates
+            console.log("DEBUG: Finished planting all maxed trees.");
+        });
+    }
 });
