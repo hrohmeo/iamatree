@@ -2251,23 +2251,15 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
                 while(branchesAdded < 100 && branchAttempts < 500) { // Attempt limit to prevent infinite loops
                     if (availableNutrients > 0) {
                         let addedThisTry = false;
-                        // Try adding to trunk first if possible, then to existing branches
+                        // Try adding to trunk first if possible
                         if (tree.height >= tree.config.rules.minHeightForBranches) {
                              if (tree.addBranch()) { // addBranch adds to trunk
                                 branchesAdded++;
                                 addedThisTry = true;
                             }
                         }
-                        if (!addedThisTry) { // If trunk adding failed or not possible, try child branch
-                            const allBranches = tree.getAllBranches();
-                            if (allBranches.length > 0) {
-                                const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
-                                if (randomBranch.addChildBranch()) {
-                                    branchesAdded++;
-                                    addedThisTry = true;
-                                }
-                            }
-                        }
+                        // Removed the section that added child branches.
+                        // All branches should now originate from the trunk in debug mode.
                         if (addedThisTry) availableNutrients--;
                         branchAttempts++;
                     } else break;
