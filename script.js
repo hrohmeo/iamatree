@@ -38,6 +38,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // angleVariation = (Math.PI / 2.5) * (Math.random() - 0.5); newAngle = parent.angle + angleVariation
             rootSubsequentVariation: Math.PI / 2.5, // +/- 36 degrees from parent angle
         },
+        // Example for fir/spruce like downward branches for RIGHT side (mirrored for left):
+        // branchInitialMin: Math.PI / 12, // 15 degrees down
+        // branchInitialMax: Math.PI / 4,  // 45 degrees down
+        // branchSubsequentVariation: Math.PI / 6, // +/- 30 degrees
         rules: {
             minHeightForBranches: 100,
             minHeightForFruits: 250,
@@ -220,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fruit: '#8B4513', // Cone color (saddle brown)
             root: '#556B2F', // Dark olive green for roots
         },
-        angles: { ...defaultTreeConfig.angles, branchInitialMin: -Math.PI * 0.6, branchInitialMax: -Math.PI * 0.4, branchSubsequentVariation: Math.PI / 4 }, // More horizontal branches
+        angles: { ...defaultTreeConfig.angles, branchInitialMin: Math.PI / 12, branchInitialMax: Math.PI / 4, branchSubsequentVariation: Math.PI / 6 }, // Branches point slightly downwards
         rules: { ...defaultTreeConfig.rules, minHeightForBranches: 70, minHeightForFruits: 300 },
         branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 800, scalingExponent: 1.3 },
         fruitSize: { min: 10, max: 18 }, // Cones
@@ -272,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fruit: '#D2B48C', // Cone color (tan)
             root: '#4A3B31', // Dark, earthy brown
         },
-        angles: { ...defaultTreeConfig.angles, branchInitialMin: -Math.PI * 0.55, branchInitialMax: -Math.PI * 0.45, branchSubsequentVariation: Math.PI / 4.5 }, // Branches often slightly downturned
+        angles: { ...defaultTreeConfig.angles, branchInitialMin: 0, branchInitialMax: Math.PI / 6, branchSubsequentVariation: Math.PI / 5 }, // Branches now configured to be slightly downturned
         rules: { ...defaultTreeConfig.rules, minHeightForBranches: 60, minHeightForFruits: 350 },
         branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 700, scalingExponent: 1.25 }, // Fewer, but well-defined branch whorls
         fruitSize: { min: 12, max: 20 }, // Longer cones
@@ -780,17 +784,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const onLeft = Math.random() < 0.5;
             let angle;
-            // Reverted to original symmetrical angle logic to fix bug
+
+            // Use configured angles from this.config.angles
+            // These angles are assumed to be for the RIGHT side of the tree.
+            // For the LEFT side, they will be mirrored.
+            const minAngleConfig = this.config.angles.branchInitialMin;
+            const maxAngleConfig = this.config.angles.branchInitialMax;
+
+            // Generate a random angle within the configured range (for the right side)
+            let baseAngle = minAngleConfig + Math.random() * (maxAngleConfig - minAngleConfig);
+
             if (onLeft) {
-                // Angles for left side: upper-left quadrant [-PI, -PI/2]
-                // -PI (straight left) to -PI/2 (straight up)
-                angle = -Math.PI / 2 - Math.random() * (Math.PI / 2);
-            } else {
-                // Angles for right side: upper-right quadrant [-PI/2, 0]
-                // -PI/2 (straight up) to 0 (straight right)
-                angle = -Math.random() * (Math.PI / 2);
+                // Mirror the angle for the left side.
+                // e.g., if baseAngle is PI/6 (30 deg right-down), left angle is PI - PI/6 = 5PI/6 (30 deg left-down)
+                angle = Math.PI - baseAngle;
+                // Normalize angle to be within preferred ranges if necessary, e.g., -PI to PI.
+                // Math.cos and Math.sin handle larger positive/negative angles correctly.
+                // However, for consistency or debugging, normalization can be useful.
+                // Example: if angle becomes 1.1*PI, it could be -0.9*PI.
+                // Let's ensure it's in a common range like atan2 uses (-PI to PI)
+                angle = Math.atan2(Math.sin(angle), Math.cos(angle));
+
+
+            } else { // onRight
+                angle = baseAngle;
             }
-            // The config angles (this.config.angles.branchInitialMin/Max) are currently not used by this reverted logic.
             // A future step could refine this to use them while maintaining symmetry if desired.
 
             const eligibleTrunkHeightForScaling = this.height - this.config.rules.minHeightForBranches;
