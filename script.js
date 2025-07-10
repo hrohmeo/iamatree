@@ -535,19 +535,19 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.closePath();
             ctx.fill();
 
-            // 2. Wurzeln zeichnen
+            // 2. Draw roots
             this.roots.forEach(root => root.draw());
 
-            // 3. Äste selbst zeichnen
+            // 3. Draw branches themselves
             this.branches.forEach(branch => branch.drawBranchItself());
 
-            // 4. Blätter der Äste zeichnen
+            // 4. Draw leaves of branches
             this.branches.forEach(branch => branch.drawBranchLeaves());
 
-            // 5. Blätter am Stamm zeichnen (Fallback)
+            // 5. Draw leaves on trunk (fallback)
             this.leaves.forEach(leaf => leaf.draw());
 
-            // 6. Früchte zeichnen
+            // 6. Draw fruits
             this.fruitObjects.forEach(fruit => fruit.draw());
 
             // Glow effect for selected tree's trunk is handled before drawing the trunk.
@@ -590,19 +590,19 @@ document.addEventListener('DOMContentLoaded', () => {
             // to prevent glow affecting other parts of this tree or subsequent drawings.
             this._resetShadow(ctx);
 
-            // 2. Wurzeln zeichnen
+            // 2. Draw roots
             this.roots.forEach(root => root.draw());
 
-            // 3. Äste selbst zeichnen
+            // 3. Draw branches themselves
             this.branches.forEach(branch => branch.drawBranchItself());
 
-            // 4. Blätter der Äste zeichnen
+            // 4. Draw leaves of branches
             this.branches.forEach(branch => branch.drawBranchLeaves());
 
-            // 5. Blätter am Stamm zeichnen (Fallback)
+            // 5. Draw leaves on trunk (fallback)
             this.leaves.forEach(leaf => leaf.draw());
 
-            // 6. Früchte zeichnen
+            // 6. Draw fruits
             this.fruitObjects.forEach(fruit => fruit.draw());
         }
 
@@ -685,7 +685,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.roots.push(newRoot);
             console.log(`Primary root added. Angle: ${initialAngle.toFixed(2)}`);
 
-            const initialBranchingAttempts = 1 + Math.floor(Math.random() * 2);
+            const initialBranchingAttempts = 1 + Math.floor(Math.random() * 2); // Corrected: "initialBranchingAttempts" was "initialBranchingAttempts"
             for (let i = 0; i < initialBranchingAttempts; i++) {
                 if (newRoot.length > this.config.minRootLengthForSubRooting && newRoot.childRoots.length < this.config.maxChildRootsPerRoot) {
                     newRoot.addChildRoot();
@@ -1256,20 +1256,20 @@ document.addEventListener('DOMContentLoaded', () => {
     limitInputLength(produceFruitInput, 4);
 
     // Game State Variables
-    const months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     let currentMonthIndex = 0;
     let availableNutrients = 10000;
 
     // Update UI Functions
     function updateMonthDisplay() {
         if (currentMonthDisplay) {
-            currentMonthDisplay.textContent = `Monat: ${months[currentMonthIndex]}`;
+            currentMonthDisplay.textContent = `Month: ${months[currentMonthIndex]}`;
         }
     }
 
     function updateNutrientsDisplay() {
         if (availableNutrientsDisplay) {
-            availableNutrientsDisplay.textContent = `Nährstoffe: ${availableNutrients}`;
+            availableNutrientsDisplay.textContent = `Nutrients: ${availableNutrients}`;
         }
     }
 
