@@ -2250,22 +2250,52 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
                 let branchAttempts = 0;
                 while(branchesAdded < 100 && branchAttempts < 500) { // Attempt limit to prevent infinite loops
                     if (availableNutrients > 0) {
-                        let addedThisTry = false;
-                        // Try adding to trunk first if possible
-                        if (tree.height >= tree.config.rules.minHeightForBranches) {
-                             if (tree.addBranch()) { // addBranch adds to trunk
-                                branchesAdded++;
-                                addedThisTry = true;
+                        availableNutrients--; // Consume nutrient for the attempt
+
+                        let attemptSuccessful = false;
+                        const allCurrentBranches = tree.getAllBranches();
+
+                        // Decision logic: add to trunk or existing branch
+                        const shouldTryTrunk = tree.branches.length === 0 || // No branches yet, must go to trunk
+                                           Math.random() < 0.3 || // 30% chance to try trunk
+                                           allCurrentBranches.length < 5 || // Few branches overall, prioritize trunk
+                                           (allCurrentBranches.length > 0 && Math.random() < 0.1); // Small chance to go to trunk even if many child branches exist
+
+                        if (shouldTryTrunk) {
+                            if (tree.addBranch()) { // Adds to trunk
+                                attemptSuccessful = true;
                             }
                         }
-                        // Removed the section that added child branches.
-                        // All branches should now originate from the trunk in debug mode.
-                        if (addedThisTry) availableNutrients--;
+
+                        // If trunk attempt was not made or failed, and there are branches, try adding to a child.
+                        // Or, even if trunk succeeded, 70% chance to also try adding a child branch if possible.
+                        if (!attemptSuccessful || (allCurrentBranches.length > 0 && Math.random() < 0.7)) {
+                            if (allCurrentBranches.length > 0) {
+                                const randomExistingBranch = allCurrentBranches[Math.floor(Math.random() * allCurrentBranches.length)];
+                                if (randomExistingBranch.addChildBranch()) {
+                                    attemptSuccessful = true; // Could be true even if trunk also succeeded this iteration
+                                }
+                            }
+                        }
+
+                        // If no branch was added (neither trunk nor child), and we initially decided against trunk or trunk failed,
+                        // make a final attempt to add to trunk if conditions allow, to ensure growth if possible.
+                        if (!attemptSuccessful && !shouldTryTrunk) {
+                            if (tree.addBranch()) {
+                                attemptSuccessful = true;
+                            }
+                        }
+
+                        if (attemptSuccessful) {
+                            branchesAdded++;
+                        } else {
+                            availableNutrients++; // Refund nutrient if no branch was added
+                        }
                         branchAttempts++;
-                    } else break;
-                    if(branchAttempts % 50 === 0) console.log(`DEBUG: ${config.name} branch attempt ${branchAttempts}, added ${branchesAdded}`);
+                    } else break; // Out of nutrients
+                    if(branchAttempts % 50 === 0) console.log(`DEBUG: ${config.name} branch attempt ${branchAttempts}, added ${branchesAdded} of 100 target`);
                 }
-                 console.log(`DEBUG: ${config.name} finished adding branches. Total added: ${branchesAdded}`);
+                console.log(`DEBUG: ${config.name} finished adding branches. Total added: ${branchesAdded}`);
 
 
                 // 4. Add 500 leaves
