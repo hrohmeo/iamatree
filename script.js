@@ -55,9 +55,9 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         fruitSize: { // Example values
             min: 8,
-            max: 30,
+            max: 35,
         },
-        minSizeForNewTree: 11,
+        minSizeForNewTree: 25,
         leafSize: { // Example values for leaves added via tree.addLeaf()
             min: 16, // Doubled from 8
             max: 30, // Doubled from 15
@@ -1529,22 +1529,7 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
             fruit.draw();
         });
 
-        // --- Debug Clickable Area Outline Removed ---
-        // if (true) { // Set to true to always show, or add a debug flag
-            //     const minClickX = tree.x - tree.width / 2 - CLICK_PADDING;
-            //     const maxClickX = tree.x + tree.width / 2 - CLICK_PADDING;
-            //     const treeTopY = tree.y - tree.height;
-            //     const treeBaseY = tree.y;
-            //
-            //     ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)'; // Semi-transparent red
-            //     ctx.lineWidth = 1 / zoomLevel; // Keep line width consistent regardless of zoom
-            //     ctx.beginPath(); // Start a new path for the rectangle
-            //     ctx.rect(minClickX, treeTopY, (maxClickX - minClickX), (treeBaseY - treeTopY));
-            //     ctx.stroke();
-            //     ctx.lineWidth = 1; // Reset line width if it was changed by other drawings
-            // }
-            // --- End Debug Drawing ---
-        });
+       
 
         ctx.restore(); // Restore to pre-zoom/pan state (identity transform)
     }
