@@ -493,6 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Game variables
     let score = 0;
     let trees = [];
+    let fallenFruits = [];
     let selectedTree = null; // To store the currently selected tree
     let zoomLevel = 1.0;
     let minZoom = 0.2;
@@ -870,6 +871,27 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
             ctx.fill();
+        }
+    }
+
+    class FallenFruit {
+        constructor(x, y, size, color) {
+            this.x = x;
+            this.y = y;
+            this.size = size;
+            this.color = color;
+            this.groundedTime = 0; // Time in months since it fell
+        }
+
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        age() {
+            this.groundedTime++;
         }
     }
 
@@ -1501,9 +1523,14 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
         // Update and draw game objects (trees, etc.)
         trees.forEach(tree => {
             tree.draw();
+        });
 
-            // --- Debug Clickable Area Outline Removed ---
-            // if (true) { // Set to true to always show, or add a debug flag
+        fallenFruits.forEach(fruit => {
+            fruit.draw();
+        });
+
+        // --- Debug Clickable Area Outline Removed ---
+        // if (true) { // Set to true to always show, or add a debug flag
             //     const minClickX = tree.x - tree.width / 2 - CLICK_PADDING;
             //     const maxClickX = tree.x + tree.width / 2 - CLICK_PADDING;
             //     const treeTopY = tree.y - tree.height;
@@ -2086,10 +2113,26 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
         updateNutrientsDisplay();
         updateButtonStates(); // Update button states as nutrients have changed
 
+        // Age and remove old fallen fruits
+        fallenFruits.forEach(fruit => fruit.age());
+        fallenFruits = fallenFruits.filter(fruit => fruit.groundedTime < 3); // Remove after 3 months
+
         // Autumn seasonal changes
         trees.forEach(tree => {
             const allBranches = tree.getAllBranches();
-            if (currentMonthIndex === 8) { // September
+            if (currentMonthIndex === 7) { // August
+                console.log(`Harvest Time: August - ${tree.config.name} fruits are falling.`);
+                tree.fruitObjects = tree.fruitObjects.filter(fruit => {
+                    if (fruit.size >= tree.config.minSizeForNewTree) {
+                        // Fruit is big enough, falls to the ground
+                        const fallenFruit = new FallenFruit(fruit.x, tree.y, fruit.size, fruit.color);
+                        fallenFruits.push(fallenFruit);
+                        return false; // Remove from tree
+                    }
+                    return false; // Remove from tree (disappears)
+                });
+                tree.fruits = tree.fruitObjects.length; // Update fruit count
+            } else if (currentMonthIndex === 8) { // September
                 console.log(`Autumn: September - ${tree.config.name} leaves turning yellow.`);
                 allBranches.forEach(branch => {
                     branch.leaves.forEach(leaf => {
