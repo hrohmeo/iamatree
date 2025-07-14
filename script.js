@@ -55,8 +55,9 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         fruitSize: { // Example values
             min: 8,
-            max: 12,
+            max: 30,
         },
+        minSizeForNewTree: 11,
         leafSize: { // Example values for leaves added via tree.addLeaf()
             min: 16, // Doubled from 8
             max: 30, // Doubled from 15
@@ -113,6 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
             min: 6,
             max: 10,
         },
+        minSizeForNewTree: 9,
         leafSize: {
             min: 20, // Doubled from 10
             max: 36, // Doubled from 18
@@ -149,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rules: { ...defaultTreeConfig.rules, minHeightForBranches: 90, minHeightForFruits: 220 },
         branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 1100, scalingExponent: 1.4 },
         fruitSize: { min: 5, max: 8 }, // Acorns
+        minSizeForNewTree: 7,
         leafSize: { min: 18, max: 32 },
         trunkWidthGrowthFactor: 0.055,
         maxChildBranchesPerBranch: 2,
@@ -175,6 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rules: { ...defaultTreeConfig.rules, minHeightForBranches: 95, minLeavesForFruits: 55 },
         branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 1000, scalingExponent: 1.55 },
         fruitSize: { min: 4, max: 7 }, // Beechnuts
+        minSizeForNewTree: 6,
         leafSize: { min: 17, max: 30 },
         trunkWidthGrowthFactor: 0.045,
         maxChildBranchesPerBranch: 2,
@@ -201,6 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rules: { ...defaultTreeConfig.rules, minHeightForFruits: 230 },
         branchParams: { ...defaultTreeConfig.branchParams, minBranchesAtMinHeight: 3, maxBranchesAtMaxHeight: 1300, scalingExponent: 1.6 },
         fruitSize: { min: 10, max: 15 }, // Samaras (helicopter seeds) - representing size of the wing pair
+        minSizeForNewTree: 14,
         leafSize: { min: 20, max: 38 }, // Larger, distinct leaves
         trunkWidthGrowthFactor: 0.05,
         maxChildBranchesPerBranch: 3,
@@ -228,6 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rules: { ...defaultTreeConfig.rules, minHeightForBranches: 70, minHeightForFruits: 300 },
         branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 800, scalingExponent: 1.3 },
         fruitSize: { min: 10, max: 18 }, // Cones
+        minSizeForNewTree: 17,
         leafSize: { min: 12, max: 22 }, // Representing clusters of needles
         trunkWidthGrowthFactor: 0.035,
         maxChildBranchesPerBranch: 2,
@@ -254,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rules: { ...defaultTreeConfig.rules, minHeightForBranches: 75, minLeavesForFruits: 70 },
         branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 900, scalingExponent: 1.35 },
         fruitSize: { min: 8, max: 15 }, // Cones
+        minSizeForNewTree: 14,
         leafSize: { min: 14, max: 25 }, // Needles
         trunkWidthGrowthFactor: 0.04,
         maxChildBranchesPerBranch: 2,
@@ -280,6 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rules: { ...defaultTreeConfig.rules, minHeightForBranches: 60, minHeightForFruits: 350 },
         branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 700, scalingExponent: 1.25 }, // Fewer, but well-defined branch whorls
         fruitSize: { min: 12, max: 20 }, // Longer cones
+        minSizeForNewTree: 19,
         leafSize: { min: 10, max: 20 }, // Needles
         trunkWidthGrowthFactor: 0.03,
         maxChildBranchesPerBranch: 1, // Less sub-branching to maintain conical shape
@@ -307,6 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rules: { ...defaultTreeConfig.rules, minHeightForBranches: 50, minHeightForFruits: 150, minLeavesForFruits: 40 },
         branchParams: { ...defaultTreeConfig.branchParams, minBranchesAtMinHeight: 4, maxBranchesAtMaxHeight: 1500, scalingExponent: 1.7 }, // Many branches for dense canopy
         fruitSize: { min: 15, max: 25 }, // Mangoes
+        minSizeForNewTree: 24,
         leafSize: { min: 22, max: 40 }, // Large leaves
         trunkWidthGrowthFactor: 0.06,
         maxChildBranchesPerBranch: 3,
@@ -333,6 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rules: { ...defaultTreeConfig.rules, minHeightForFruits: 120, minLeavesForFruits: 35 },
         branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 1400, scalingExponent: 1.65 },
         fruitSize: { min: 12, max: 20 }, // Avocados
+        minSizeForNewTree: 19,
         leafSize: { min: 20, max: 35 },
         trunkWidthGrowthFactor: 0.058,
         maxChildBranchesPerBranch: 3,
@@ -359,6 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rules: { ...defaultTreeConfig.rules, minHeightForBranches: 40, minHeightForFruits: 100, minLeavesForFruits: 30 },
         branchParams: { ...defaultTreeConfig.branchParams, minBranchesAtMinHeight: 3, maxBranchesAtMaxHeight: 1600, scalingExponent: 1.75 }, // Bushy
         fruitSize: { min: 10, max: 16 }, // Oranges
+        minSizeForNewTree: 15,
         leafSize: { min: 18, max: 30 },
         trunkWidthGrowthFactor: 0.052,
         maxChildBranchesPerBranch: 3,
@@ -386,6 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rules: { ...defaultTreeConfig.rules, minHeightForBranches: 60, minHeightForFruits: 180, minLeavesForFruits: 50 },
         branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 1200, scalingExponent: 1.5 },
         fruitSize: { min: 20, max: 35 }, // Large, heavy fruits
+        minSizeForNewTree: 34,
         leafSize: { min: 18, max: 30 },
         trunkWidthGrowthFactor: 0.053,
         maxChildBranchesPerBranch: 2,
@@ -412,6 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rules: { ...defaultTreeConfig.rules, minHeightForBranches: 35, minHeightForFruits: 90, minLeavesForFruits: 30 },
         branchParams: { ...defaultTreeConfig.branchParams, maxBranchesAtMaxHeight: 1700, scalingExponent: 1.8 }, // Very bushy
         fruitSize: { min: 6, max: 10 }, // Small fruits in clusters
+        minSizeForNewTree: 9,
         leafSize: { min: 15, max: 28 },
         trunkWidthGrowthFactor: 0.05,
         maxChildBranchesPerBranch: 3,
@@ -454,6 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
             scalingExponent: 1.2,      // Slower increase in branch count with height
         },
         fruitSize: { min: 3, max: 6 },    // Small cones
+        minSizeForNewTree: 5,
         leafSize: { min: 20, max: 35 },   // Representing small sprays/leaf scales - Increased size
         trunkWidthGrowthFactor: 0.025, // Grows proportionally narrower for its height
         maxChildBranchesPerBranch: 2,
@@ -730,7 +744,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fruitBaseX = randomBranchWithLeaves.startX + Math.cos(randomBranchWithLeaves.angle) * randomBranchWithLeaves.length * positionOnBranch;
                 const fruitBaseY = randomBranchWithLeaves.startY + Math.sin(randomBranchWithLeaves.angle) * randomBranchWithLeaves.length * positionOnBranch;
 
-                const fruitSizeVal = this.config.fruitSize.min + Math.random() * (this.config.fruitSize.max - this.config.fruitSize.min);
+                const fruitSizeVal = this.config.fruitSize.min + (Math.random() * Math.random()) * (this.config.fruitSize.max - this.config.fruitSize.min);
 
                 const perpendicularOffset = (Math.random() - 0.5) * fruitSizeVal * 2;
                 const fruitX = fruitBaseX + Math.sin(randomBranchWithLeaves.angle) * perpendicularOffset;
@@ -1352,9 +1366,9 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
             produceFruitButton.disabled = noNutrients || !canProduceFruitConditions;
         }
 
-        // Plant new tree button - enabled if ANY tree has fruit AND nutrients are available
-        const anyTreeHasFruit = trees.some(tree => tree.fruitObjects.length > 0);
-        plantNewTreeButton.disabled = noNutrients || !anyTreeHasFruit;
+        // Plant new tree button - enabled if ANY tree has fruit of sufficient size AND nutrients are available
+        const anyTreeHasViableFruit = trees.some(tree => tree.fruitObjects.some(fruit => fruit.size >= tree.config.minSizeForNewTree));
+        plantNewTreeButton.disabled = noNutrients || !anyTreeHasViableFruit;
 
         // If there's no selected tree, but nutrients are zero, plantNewTreeButton should also be disabled.
         // The above handles this. If selectedTree is null, noNutrients might still be true, disabling it.
@@ -1667,16 +1681,29 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
 
     plantNewTreeButton.addEventListener('click', () => {
         let parentTree = null;
-        if (selectedTree && selectedTree.fruitObjects.length > 0) {
-            parentTree = selectedTree;
+        let fruitIndex = -1;
+
+        const findViableParent = (tree) => {
+            const index = tree.fruitObjects.findIndex(fruit => fruit.size >= tree.config.minSizeForNewTree);
+            if (index !== -1) {
+                parentTree = tree;
+                fruitIndex = index;
+                return true;
+            }
+            return false;
+        };
+
+        if (selectedTree && findViableParent(selectedTree)) {
+            // A suitable fruit was found in the selected tree
         } else {
-            parentTree = trees.find(tree => tree.fruitObjects.length > 0);
+            // Search all trees for a suitable fruit
+            trees.find(findViableParent);
         }
         
-        if (parentTree && availableNutrients > 0) {
+        if (parentTree && fruitIndex !== -1 && availableNutrients > 0) {
             availableNutrients--;
-            parentTree.fruitObjects.pop(); 
-            parentTree.fruits = parentTree.fruitObjects.length; 
+            parentTree.fruitObjects.splice(fruitIndex, 1);
+            parentTree.fruits = parentTree.fruitObjects.length;
 
             const newScreenX = Math.random() * (canvas.width - 60) + 30;
             const newWorldX = (newScreenX - panX) / zoomLevel;
@@ -1982,7 +2009,7 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
         }
         
         console.log("[DEBUG] Calling updateButtonStates().");
-        updateButtonStates(); 
+        updateButtonStates();
         // console.log("[DEBUG] handleCanvasClick finished."); // For tracing end
     }
 
