@@ -77,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fruitPlacementRange: { min: 0.2, max: 0.8 },
         leafOutStartMonth: 2, // March (0-indexed)
         leafOutEndMonth: 5,   // June
+        leafAngle: Math.PI / 4,
     };
 
     const willowLikeConfig = {
@@ -128,6 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fruitPlacementRange: { min: 0.1, max: 0.9 },
         leafOutStartMonth: 3, // April
         leafOutEndMonth: 6,   // July
+        leafAngle: Math.PI / 4,
     };
 
     // Array of available configurations
@@ -162,6 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fruitPlacementRange: { min: 0.2, max: 0.8 },
         leafOutStartMonth: 2, // March
         leafOutEndMonth: 5,   // June
+        leafAngle: Math.PI / 4,
     };
 
     const beechConfig = {
@@ -189,6 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fruitPlacementRange: { min: 0.25, max: 0.85 },
         leafOutStartMonth: 3, // April
         leafOutEndMonth: 6,   // July
+        leafAngle: Math.PI / 4,
     };
 
     const mapleConfig = {
@@ -216,6 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fruitPlacementRange: { min: 0.15, max: 0.8 },
         leafOutStartMonth: 2, // March
         leafOutEndMonth: 5,   // June
+        leafAngle: Math.PI / 4,
     };
 
     // Rare Trees
@@ -244,6 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fruitPlacementRange: { min: 0.5, max: 0.9 }, // Cones often near ends or upper parts
         leafOutStartMonth: 0, // Evergreen - can "grow" leaves year-round conceptually
         leafOutEndMonth: 11,
+        leafAngle: Math.PI / 2,
     };
 
     const pineConfig = {
@@ -271,6 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fruitPlacementRange: { min: 0.4, max: 0.85 },
         leafOutStartMonth: 0, // Evergreen
         leafOutEndMonth: 11,
+        leafAngle: Math.PI / 4,
     };
 
     const spruceConfig = {
@@ -298,6 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fruitPlacementRange: { min: 0.6, max: 0.95 }, // Cones hang down, often upper parts
         leafOutStartMonth: 0, // Evergreen
         leafOutEndMonth: 11,
+        leafAngle: Math.PI / 2,
     };
 
     // Epic Trees
@@ -326,6 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fruitPlacementRange: { min: 0.3, max: 0.7 }, // Fruits hang
         leafOutStartMonth: 1, // Tropical, longer leafing period
         leafOutEndMonth: 10,
+        leafAngle: Math.PI / 4,
     };
 
     const avocadoConfig = {
@@ -353,6 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fruitPlacementRange: { min: 0.25, max: 0.75 },
         leafOutStartMonth: 1,
         leafOutEndMonth: 10,
+        leafAngle: Math.PI / 4,
     };
 
     const orangeConfig = {
@@ -380,6 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fruitPlacementRange: { min: 0.2, max: 0.8 },
         leafOutStartMonth: 2,
         leafOutEndMonth: 9, // Shorter active season than mango/avocado
+        leafAngle: Math.PI / 4,
     };
 
     // Legendary Trees
@@ -408,6 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fruitPlacementRange: { min: 0.3, max: 0.6 }, // Heavy fruits hang closer to stronger parts
         leafOutStartMonth: 1, // Tropical
         leafOutEndMonth: 10,
+        leafAngle: Math.PI / 4,
     };
 
     const lycheeConfig = {
@@ -435,6 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fruitPlacementRange: { min: 0.2, max: 0.8 }, // Fruits in panicles
         leafOutStartMonth: 2,
         leafOutEndMonth: 9,
+        leafAngle: Math.PI / 4,
     };
 
     // Mythical Tree
@@ -468,7 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         fruitSize: { min: 3, max: 6 },    // Small cones
         minSizeForNewTree: 5,
-        leafSize: { min: 5, max: 15 },   // Representing small sprays/leaf scales - Increased size
+        leafSize: { min: 10, max: 25 },   // Representing small sprays/leaf scales - Increased size
         trunkWidthGrowthFactor: 0.025, // Grows proportionally narrower for its height
         maxChildBranchesPerBranch: 2,
         minBranchLengthForSubBranching: 20, // Branches must be long to sub-branch
@@ -478,6 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fruitPlacementRange: { min: 0.7, max: 0.95 }, // Cones at tips of branches, high up
         leafOutStartMonth: 0, // Evergreen
         leafOutEndMonth: 11,
+        leafAngle: Math.PI / 4,
     };
 
     // --- End of New Tree Configurations ---
@@ -672,9 +686,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const allBranches = this.getAllBranches();
             if (allBranches.length > 0) {
-                const isConifer = ['Fir', 'Pine', 'Spruce'].includes(this.config.name);
+                const isConifer = ['Fir', 'Pine', 'Spruce', 'Redwood'].includes(this.config.name);
                 if (isConifer) {
-                    for (let i = 0; i < 100; i++) {
+                    for (let i = 0; i < 50; i++) {
                         const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
                         const leafSize = size !== undefined ? size : (this.config.leafSize.min + Math.random() * (this.config.leafSize.max - this.config.leafSize.min));
                         const leafColor = color !== undefined ? color : this.config.colors.leaf;
@@ -987,19 +1001,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const leafY = leafBaseY - Math.cos(this.angle) * perpendicularOffset;
 
             // Pass the branch's angle to the Leaf constructor
-            this.leaves.push(new Leaf(leafX, leafY, leafSize, leafColor, this.angle, isNeedle));
+            this.leaves.push(new Leaf(this.parentTree, leafX, leafY, leafSize, leafColor, this.angle, isNeedle));
             console.log('Leaf added to branch');
         }
     }
 
     class Leaf {
-        constructor(x, y, size, color, branchAngle, isNeedle = false) { // Added branchAngle
+        constructor(parentTree, x, y, size, color, branchAngle, isNeedle = false) { // Added branchAngle
+            this.parentTree = parentTree;
             this.x = x;
             this.y = y;
             this.size = size; // Diameter of the circle
             this.color = color;
             this.branchAngle = branchAngle; // Store the branch angle
             this.isNeedle = isNeedle;
+            // Add a random angle variation for each leaf
+            this.angleVariation = Math.random() * Math.PI / 4 - Math.PI / 8;
             // Store random direction for gradient for consistency
             this.gradientAngle = Math.random() * 2 * Math.PI;
         }
@@ -1053,7 +1070,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (this.isNeedle) {
                 ctx.save();
                 ctx.translate(this.x, this.y);
-                ctx.rotate(this.branchAngle + Math.PI / 2);
+                ctx.rotate(this.branchAngle + this.parentTree.config.leafAngle + this.angleVariation);
                 ctx.strokeStyle = this.color;
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -1113,8 +1130,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // To point the leaf "outward" at 45 deg from branch:
             // If branch is pointing up (-PI/2), leaf should be -PI/2 + PI/4 = -PI/4 (upper right) OR -PI/2 - PI/4 = -3PI/4 (upper left)
             // Let's make it consistently one side, e.g., 45 degrees clockwise relative to the branch vector.
-            // So, rotation will be this.branchAngle + Math.PI / 4.
-            ctx.rotate(this.branchAngle + Math.PI / 4);
+            // So, rotation will be this.branchAngle + this.parentTree.config.leafAngle.
+            ctx.rotate(this.branchAngle + this.parentTree.config.leafAngle + this.angleVariation);
 
             ctx.beginPath();
 
