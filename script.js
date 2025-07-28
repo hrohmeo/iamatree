@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
         maxChildBranchesPerBranch: 2,
         // Min length for a branch to be able to sprout child branches
         minBranchLengthForSubBranching: 10,
+        childBranchFactor: 0.7,
         // Root branching properties
         maxChildRootsPerRoot: 2,
         minRootLengthForSubRooting: 8,
@@ -463,8 +464,8 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         angles: { // Branches are relatively short compared to height, often upswept initially
             ...defaultTreeConfig.angles,
-            branchInitialMin: -Math.PI * 0.6,
-            branchInitialMax: -Math.PI * 0.4,
+            branchInitialMin: Math.PI / 12, // 15 degrees down
+            branchInitialMax: Math.PI / 4,  // 45 degrees down
             branchSubsequentVariation: Math.PI / 5, // Less variation to maintain verticality
         },
         rules: {
@@ -485,6 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
         trunkWidthGrowthFactor: 0.025, // Grows proportionally narrower for its height
         maxChildBranchesPerBranch: 2,
         minBranchLengthForSubBranching: 20, // Branches must be long to sub-branch
+        childBranchFactor: 0.5,
         maxChildRootsPerRoot: 2,           // Massive root system, but not overly complex branching per root
         minRootLengthForSubRooting: 15,
         leafPlacementRange: { min: 0.1, max: 0.9 },
@@ -970,11 +972,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 return false;
             }
 
-            const newLength = this.length * (0.5 + Math.random() * 0.3);
+            const newLength = this.length * this.parentTree.config.childBranchFactor;
             const newThickness = Math.max(1, this.thickness * 0.7);
 
             const angleVariation = this.parentTree.config.angles.branchSubsequentVariation;
-            const newAngle = this.angle + (Math.random() * angleVariation * 2 - angleVariation);
+            let newAngle;
+
+            if (this.parentTree.config.name === "Redwood") {
+                // Child branches always angle less down than the parent.
+                // A smaller angle means less downward.
+                const parentAngle = this.angle > Math.PI / 2 ? Math.PI - this.angle : this.angle;
+                const minChildAngle = 0; // Should not go up
+                const maxChildAngle = parentAngle - (Math.random() * (parentAngle / 4)); // Reduce angle by up to 25%
+                newAngle = minChildAngle + Math.random() * (maxChildAngle - minChildAngle);
+                if (this.angle > Math.PI / 2) { // Left-side branch
+                    newAngle = Math.PI - newAngle;
+                }
+            } else {
+                newAngle = this.angle + (Math.random() * angleVariation * 2 - angleVariation);
+            }
 
             const newBranch = new Branch(this.parentTree, this.endX, this.endY, newLength, newAngle, newThickness, this.color);
             this.childBranches.push(newBranch);
