@@ -672,11 +672,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const allBranches = this.getAllBranches();
             if (allBranches.length > 0) {
-                const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
-                // Use config for default leaf size and color if not provided
-                const leafSize = size !== undefined ? size : (this.config.leafSize.min + Math.random() * (this.config.leafSize.max - this.config.leafSize.min));
-                const leafColor = color !== undefined ? color : this.config.colors.leaf;
-                randomBranch.addLeaf(leafSize, leafColor);
+                const isConifer = ['Fir', 'Pine', 'Spruce'].includes(this.config.name);
+                if (isConifer) {
+                    for (let i = 0; i < 100; i++) {
+                        const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
+                        const leafSize = size !== undefined ? size : (this.config.leafSize.min + Math.random() * (this.config.leafSize.max - this.config.leafSize.min));
+                        const leafColor = color !== undefined ? color : this.config.colors.leaf;
+                        randomBranch.addLeaf(leafSize, leafColor, true);
+                    }
+                } else {
+                    const randomBranch = allBranches[Math.floor(Math.random() * allBranches.length)];
+                    // Use config for default leaf size and color if not provided
+                    const leafSize = size !== undefined ? size : (this.config.leafSize.min + Math.random() * (this.config.leafSize.max - this.config.leafSize.min));
+                    const leafColor = color !== undefined ? color : this.config.colors.leaf;
+                    randomBranch.addLeaf(leafSize, leafColor, false);
+                }
                 return true; // Indicate success
             } else {
                 console.log('Cannot add leaf: Tree has no branches.');
@@ -958,7 +968,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         }
 
-        addLeaf(size, color) { // Removed default size, will use config. color can still be passed or default.
+        addLeaf(size, color, isNeedle = false) { // Removed default size, will use config. color can still be passed or default.
             const configLeafSize = this.parentTree.config.leafSize;
             const leafSize = size !== undefined ? size : (configLeafSize.min + Math.random() * (configLeafSize.max - configLeafSize.min));
             const leafColor = color !== undefined ? color : this.parentTree.config.colors.leaf;
@@ -977,18 +987,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const leafY = leafBaseY - Math.cos(this.angle) * perpendicularOffset;
 
             // Pass the branch's angle to the Leaf constructor
-            this.leaves.push(new Leaf(leafX, leafY, leafSize, leafColor, this.angle)); 
+            this.leaves.push(new Leaf(leafX, leafY, leafSize, leafColor, this.angle, isNeedle));
             console.log('Leaf added to branch');
         }
     }
 
     class Leaf {
-        constructor(x, y, size, color, branchAngle) { // Added branchAngle
+        constructor(x, y, size, color, branchAngle, isNeedle = false) { // Added branchAngle
             this.x = x;
             this.y = y;
             this.size = size; // Diameter of the circle
             this.color = color;
             this.branchAngle = branchAngle; // Store the branch angle
+            this.isNeedle = isNeedle;
             // Store random direction for gradient for consistency
             this.gradientAngle = Math.random() * 2 * Math.PI;
         }
@@ -1039,6 +1050,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         draw() {
+            if (this.isNeedle) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.branchAngle + Math.PI / 2);
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(0, -this.size);
+                ctx.stroke();
+                ctx.restore();
+                return;
+            }
             // Define gradient in local coordinates (leaf drawn with base at 0,0, tip pointing up local -Y)
             const radius = this.size / 2; // Use half of overall size for gradient extent
             
