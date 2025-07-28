@@ -543,7 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
         constructor(x, y, config, height = 10, width = 5) { // Added config parameter
             this.x = x;
             this.y = y; // Base of the trunk
-            this.config = config; // Store the configuration
+            this.config = JSON.parse(JSON.stringify(config)); // Store the configuration
             this.height = height;
             this.width = width;
             // this.color = color; // Deprecated, use this.config.colors.trunk
@@ -554,37 +554,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.fruits = 0; // Counter for scoring, might be phased out
             this.fruitObjects = []; // To store Fruit objects
             this.isSelected = false; // To mark if the tree is currently selected
-        }
-
-        draw() {
-             // Draw trunk (tapered)
-            ctx.fillStyle = this.config.colors.trunk; // Use config color
-            ctx.beginPath();
-            ctx.moveTo(this.x - this.width / 2, this.y); // Bottom-left
-            ctx.lineTo(this.x + this.width / 2, this.y); // Bottom-right
-            ctx.lineTo(this.x, this.y - this.height);    // Top-center
-            ctx.closePath();
-            ctx.fill();
-
-            // 2. Draw roots
-            this.roots.forEach(root => root.draw());
-
-            // 3. Draw branches themselves
-            this.branches.forEach(branch => branch.drawBranchItself());
-
-            // 4. Draw leaves of branches
-            this.branches.forEach(branch => branch.drawBranchLeaves());
-
-            // 5. Draw leaves on trunk (fallback)
-            this.leaves.forEach(leaf => leaf.draw());
-
-            // 6. Draw fruits
-            this.fruitObjects.forEach(fruit => fruit.draw());
-
-            // Glow effect for selected tree's trunk is handled before drawing the trunk.
-            // Reset shadow properties after all components of this tree are drawn,
-            // or more specifically, after the trunk if only it should glow.
-            // For now, let's assume the glow should primarily be on the trunk and reset afterwards.
         }
 
         // Helper to reset shadow properties
@@ -1366,28 +1335,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function plantTree(config, x = null) {
+        const initialScreenX = x === null ? canvas.width / 2 : x;
+        const worldX = (initialScreenX - panX) / zoomLevel;
+        const worldY = WORLD_TREE_BASE_Y;
+
+        const newTree = new Tree(worldX, worldY, config);
+        trees.push(newTree);
+
+        if (selectedTree) {
+            selectedTree.isSelected = false;
+        }
+        newTree.isSelected = true;
+        selectedTree = newTree;
+
+        panToTree(selectedTree);
+        selectedTree.x = (initialScreenX - panX) / zoomLevel;
+        updateScore();
+        updateNutrientsDisplay();
+    }
+
     // Game Setup
     function initializeGame() {
         resizeCanvas(); // Call resizeCanvas first to set correct canvas dimensions
 		console.log(`canvas.width=${canvas.width}, canvas.clientWidth=${canvas.clientWidth}`);
-console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.clientHeight}`);
+        console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.clientHeight}`);
 
         // Create the first tree
         if (trees.length === 0) {
-            // Calculate initial X position in screen coordinates (e.g., center of the canvas)
-            const initialScreenX = canvas.width / 2;
-            // Convert screen coordinate to world coordinate
-            const initialWorldX = (initialScreenX - panX) / zoomLevel;
-            const initialTreeY = WORLD_TREE_BASE_Y; // Y is already a world coordinate
-
-            // Use the first configuration from the availableTreeConfigs array
-            const firstTree = new Tree(initialWorldX, initialTreeY, redwoodConfig);
-            trees.push(firstTree);
-            selectedTree = firstTree; // Select the first tree
-            selectedTree.isSelected = true;
+            plantTree(redwoodConfig);
             currentConfigIndex = 0; // Reset index for subsequent plantings
-            panToTree(selectedTree); // Center the initial tree
-			selectedTree.x = (canvas.width / 2 - panX) / zoomLevel;
         }
         updateMonthDisplay();
         updateNutrientsDisplay();
@@ -1775,24 +1752,12 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
             parentTree.fruits = parentTree.fruitObjects.length;
 
             const newScreenX = Math.random() * (canvas.width - 60) + 30;
-            const newWorldX = (newScreenX - panX) / zoomLevel;
-            const newY = WORLD_TREE_BASE_Y;
-
+            
             currentConfigIndex = (currentConfigIndex + 1) % availableTreeConfigs.length;
             const selectedConfig = availableTreeConfigs[currentConfigIndex];
-            const newTree = new Tree(newWorldX, newY, selectedConfig);
-            trees.push(newTree);
-
-            if (selectedTree) {
-                selectedTree.isSelected = false;
-            }
-            newTree.isSelected = true;
-            selectedTree = newTree;
+            plantTree(selectedConfig, newScreenX);
 
             console.log(`New tree planted with config: ${selectedConfig.name}. It is now selected.`);
-            panToTree(selectedTree);
-            updateScore(); // Also calls updateButtonStates
-            updateNutrientsDisplay();
         } else if (availableNutrients <= 0) {
             console.log('Not enough nutrients to plant a new tree.');
             updateButtonStates(); // Ensure button state is accurate
@@ -2333,14 +2298,8 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
                 // Calculate initial X position in screen coordinates, then convert to world
                 // Ensure trees are spaced out enough so they don't overlap too much
                 const initialScreenX = (canvas.width / 2) + currentXOffset - ( (availableTreeConfigs.length / 2) * (config.maxWidth + 100) ); // Base screen X + offset
-                const treeWorldX = (initialScreenX - panX) / zoomLevel;
-                const treeWorldY = WORLD_TREE_BASE_Y;
-
-                console.log(`DEBUG: Planting ${config.name} at worldX: ${treeWorldX}`);
-                const tree = new Tree(treeWorldX, treeWorldY, config);
-                trees.push(tree);
-                selectedTree = tree; // Select the new tree for operations
-                tree.isSelected = true;
+                plantTree(config, initialScreenX);
+                const tree = selectedTree;
 
                 // 1. Grow to max height
                 console.log(`DEBUG: Growing ${config.name} to maxHeight.`);
