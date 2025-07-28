@@ -440,10 +440,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Mythical Tree
     const redwoodConfig = {
         name: "Redwood",
-        maxHeight: 2000, // Extremely tall
-        maxWidth: 50,    // Very thick trunk
+        maxHeight: 3000, // Extremely tall
+        maxWidth: 80,    // Very thick trunk
         colors: {
-            trunk: '#8B4513', // Saddle brown, reddish tinge
+            trunk: '#5C4033', // A more reddish-brown
             leaf: '#006400', // Dark green (scale-like leaves/sprays)
             fruit: '#654321', // Small cone color (dark brown)
             root: '#5C4033', // Deep, dark brown
@@ -468,13 +468,13 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         fruitSize: { min: 3, max: 6 },    // Small cones
         minSizeForNewTree: 5,
-        leafSize: { min: 20, max: 35 },   // Representing small sprays/leaf scales - Increased size
+        leafSize: { min: 5, max: 15 },   // Representing small sprays/leaf scales - Increased size
         trunkWidthGrowthFactor: 0.025, // Grows proportionally narrower for its height
         maxChildBranchesPerBranch: 2,
         minBranchLengthForSubBranching: 20, // Branches must be long to sub-branch
         maxChildRootsPerRoot: 2,           // Massive root system, but not overly complex branching per root
         minRootLengthForSubRooting: 15,
-        leafPlacementRange: { min: 0.0, max: 1.0 },
+        leafPlacementRange: { min: 0.1, max: 0.9 },
         fruitPlacementRange: { min: 0.7, max: 0.95 }, // Cones at tips of branches, high up
         leafOutStartMonth: 0, // Evergreen
         leafOutEndMonth: 11,
@@ -1324,7 +1324,7 @@ console.log(`canvas.height=${canvas.height}, canvas.clientHeight=${canvas.client
             const initialTreeY = WORLD_TREE_BASE_Y; // Y is already a world coordinate
 
             // Use the first configuration from the availableTreeConfigs array
-            const firstTree = new Tree(initialWorldX, initialTreeY, availableTreeConfigs[0]);
+            const firstTree = new Tree(initialWorldX, initialTreeY, redwoodConfig);
             trees.push(firstTree);
             selectedTree = firstTree; // Select the first tree
             selectedTree.isSelected = true;
